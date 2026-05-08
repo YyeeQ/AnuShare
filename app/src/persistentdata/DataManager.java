@@ -35,12 +35,22 @@ public class DataManager {
 	private final DataPipeline<Message, String[]> messagePipeline = new DataPipeline<>(
 			IO, new CSVFormattedFactory(new CSVFormat(5)), new MessageSerializer(), "messages");
 
+	// Applies to reports and hidden messages as well.
+	private final DataPipeline<Report, String[]> reportPipeline = new DataPipeline<>(
+			IO, new CSVFormattedFactory(new CSVFormat(3)), new ReportSerializer(), "reports");
+
+	private final DataPipeline<UUID, String[]> hiddenPipeline = new DataPipeline<>(
+			IO, new CSVFormattedFactory(new CSVFormat(1)), new HiddenMessageSerializer(), "hidden");
+
+
 	private final UserDAO users = UserDAO.getInstance();
 	private final PostDAO posts = PostDAO.getInstance();
 
 	public void readAll() {
 		users.clear();
 		posts.clear();
+		reportStore.clear();
+		hiddenStore.clear();
 		userPipeline.readTo(users::add);
 		postPipeline.readTo(posts::add);
 		messagePipeline.readTo((message) -> posts.get(new Post(message.thread())).messages.insert(message));
@@ -50,5 +60,7 @@ public class DataManager {
 		userPipeline.writeFrom(users.getAll());
 		postPipeline.writeFrom(posts.getAll());
 		messagePipeline.writeFrom(posts.getAllMessages());
+		reportPipeline.writeFrom(reportStore.getAllReports());
+		hiddenPipeline.writeFrom(hiddenStore.getAll());
 	}
 }
