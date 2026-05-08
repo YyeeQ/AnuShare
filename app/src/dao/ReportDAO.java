@@ -1,108 +1,104 @@
 package dao;
 
-import dao.model.HasUUID;
 import dao.model.MessageReports;
 import dao.model.Report;
 
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * Singleton DAO managing all user-submitted Reports across the application.
+ * Stores all user-submitted Reports.
  * <p>
- * Reports are organised in a two-level structure:
- * <ul>
- *   <li>An outer {@code SortedData<MessageReports>} indexed by messageId, allowing
- *       O(log n) lookup of "all reports on a given message".</li>
- *   <li>An inner {@code SortedData<Report>} per message, ordered by timestamp,
- *       allowing O(log k) access to the oldest report on that message.</li>
- * </ul>
- * This shape supports every required operation efficiently:
- * <ul>
- *   <li>{@code addReport} / {@code removeReport} / {@code hasReported} —
- *       O(log n + k), where n is the number of reported messages and k is the
- *       number of reports on the targeted message.</li>
- *   <li>Task 4 "OLDEST" / "MOST" strategies — can iterate the outer SortedData
- *       and read each MessageReports' summary in O(1) per message.</li>
- * </ul>
- * Mirrors the Singleton pattern already used by {@link UserDAO} and {@link PostDAO}.
+ * Two-level structure: a HashMap from messageId to a MessageReports bucket,
+ * with each bucket holding that message's reports in an ArrayList. HashMap
+ * gives O(1) bucket lookup; we don't need messageIds in any sorted order so
+ * a tree would only add overhead. Tasks that need ordering (Task 4's OLDEST
+ * and MOST strategies) sort the buckets at query time.
  */
-public class ReportDAO extends DAO<MessageReports> {
+public class ReportDAO {
     private static ReportDAO instance;
 
-    /**
-     * @return the singleton instance, creating it on first access
-     */
     public static ReportDAO getInstance() {
         if (instance == null) instance = new ReportDAO();
         return instance;
     }
 
-    private ReportDAO() {
-        // Index MessageReports by their messageId — same pattern as PostDAO.
-        super(Comparator.comparing(HasUUID::getUUID));
+    private final Map<UUID, MessageReports> buckets = new HashMap<>();
+
+    private ReportDAO() {}
+
+    /** Used by the persistence layer on reload. */
+    public void clear() {
+        buckets.clear();
     }
 
     /**
-     * Records that a user has reported a message at the given timestamp.
-     * <p>
-     * Does nothing and returns false if the same user has already reported this
-     * message (existence checks for the message and user must be performed by
-     * the caller, since this DAO does not own those records).
-     *
-     * @param messageId the reported message
-     * @param userId    the reporting user
-     * @param timestamp the time the report was submitted, in UNIX ms
-     * @return true if a new report was stored, false if a duplicate existed
+     * Existence checks for the message and user are the caller's responsibility.
+     * @return false if the user already had an active report on this message
      */
     public boolean addReport(UUID messageId, UUID userId, long timestamp) {
-        MessageReports bucket = data.get(new MessageReports(messageId));
-        if (bucket == null) {
-            bucket = new MessageReports(messageId);
-            data.insert(bucket);
-        } else if (bucket.hasReportFrom(userId)) {
-            return false;
-        }
-        return bucket.add(new Report(messageId, userId, timestamp));
+        MessageReports bucket = buckets.computeIfAbsent(messageId, MessageReports::new);
+        if (bucket.hasReportFrom(userId)) return false;
+        bucket.add(new Report(messageId, userId, timestamp));
+        return true;
     }
 
     /**
-     * Removes the report a particular user filed against a particular message.
-     * @param messageId the message in question
-     * @param userId    the user whose report should be retracted
-     * @return true if a matching report was found and removed, false otherwise
+     * Restore path used during deserialisation. No cross-DAO checks; trusts
+     * the data on disk to be internally consistent.
      */
+    public void addExisting(Report report) {
+        MessageReports bucket = buckets.computeIfAbsent(report.message(), MessageReports::new);
+        bucket.add(report);
+    }
+
     public boolean removeReport(UUID messageId, UUID userId) {
-        MessageReports bucket = data.get(new MessageReports(messageId));
+        MessageReports bucket = buckets.get(messageId);
         if (bucket == null) return false;
         return bucket.removeReportFrom(userId);
     }
 
-    /**
-     * Checks whether a particular user has an active report on a particular message.
-     * @param messageId the message in question
-     * @param userId    the user in question
-     * @return true if such a report currently exists, false otherwise
-     */
     public boolean hasReported(UUID messageId, UUID userId) {
-        MessageReports bucket = data.get(new MessageReports(messageId));
+        MessageReports bucket = buckets.get(messageId);
         return bucket != null && bucket.hasReportFrom(userId);
     }
 
-    /**
-     * @param messageId the message in question
-     * @return the MessageReports bucket for this message, or null if none exists
-     */
     public MessageReports getReportsFor(UUID messageId) {
-        return data.get(new MessageReports(messageId));
+        return buckets.get(messageId);
     }
 
-    /**
-     * @return an iterator over every MessageReports bucket currently stored,
-     *         in messageId order. Useful for Task 4's reporting views.
-     */
+    /** Used by Task 4. */
     public Iterator<MessageReports> allBuckets() {
-        return data.getAll();
+        return buckets.values().iterator();
+    }
+
+    /** Used by the persistence layer to write reports.txt. */
+    public Iterator<Report> allReports() {
+        return new Iterator<>() {
+            private final Iterator<MessageReports> bucketIt = buckets.values().iterator();
+            private Iterator<Report> current = null;
+            private Report next = null;
+            { advance(); }
+
+            private void advance() {
+                while (current == null || !current.hasNext()) {
+                    if (!bucketIt.hasNext()) { next = null; return; }
+                    current = bucketIt.next().all();
+                }
+                next = current.next();
+            }
+
+            @Override
+            public boolean hasNext() { return next != null; }
+
+            @Override
+            public Report next() {
+                Report n = next;
+                advance();
+                return n;
+            }
+        };
     }
 }
