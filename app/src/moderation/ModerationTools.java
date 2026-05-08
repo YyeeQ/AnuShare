@@ -4,8 +4,12 @@ import dao.PostDAO;
 import dao.ReportDAO;
 import dao.UserDAO;
 import dao.model.Message;
+import dao.model.MessageReports;
 import dao.model.User;
+import moderation.strategy.ReportStrategy;
+import moderation.strategy.ReportStrategyFactory;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.UUID;
 
@@ -54,12 +58,41 @@ public class ModerationTools {
 		return true;
 	}
 
-	// --------------------------- Task 4 (placeholder) ---------------------------
+	// --------------------------- Task 4 ---------------------------
 
+	/**
+	 * Returns reported messages ordered by the chosen strategy.
+	 * <p>
+	 * Strategy is resolved through {@link ReportStrategyFactory} (Factory pattern);
+	 * the returned value is an {@link Iterator} (Iterator pattern). Messages
+	 * with zero active reports are omitted.
+	 *
+	 * @param strategy "OLDEST" or "MOST"
+	 * @param amount   maximum number of messages to return; must be positive
+	 * @throws IllegalArgumentException if strategy is unrecognised or amount is non-positive
+	 */
 	public static Iterator<Message> getReportedMessages(String strategy, int amount) {
-		// TODO: task 4
-		return null;
+		if (amount <= 0) throw new IllegalArgumentException("amount must be positive");
+
+		ReportStrategy chosen = ReportStrategyFactory.create(strategy);
+
+		// Collect non-empty buckets, sort by the chosen strategy, take the top `amount`.
+		ArrayList<MessageReports> ranked = new ArrayList<>();
+		for (Iterator<MessageReports> it = ReportDAO.getInstance().allBuckets(); it.hasNext(); ) {
+			MessageReports bucket = it.next();
+			if (!bucket.isEmpty()) ranked.add(bucket);
+		}
+		ranked.sort(chosen.comparator());
+
+		int limit = Math.min(amount, ranked.size());
+		ArrayList<Message> result = new ArrayList<>(limit);
+		for (int i = 0; i < limit; i++) {
+			Message m = getMessageByUUID(ranked.get(i).getUUID());
+			if (m != null) result.add(m);
+		}
+		return result.iterator();
 	}
+
 
 	// --------------------------- helpers ---------------------------
 
