@@ -25,21 +25,28 @@ public class Post implements HasUUID {
 	/**
 	 * UUIDs of messages on this post that are currently hidden from non-admin users.
 	 * <p>
-	 * Stored as a SortedData of UUIDs (natural ordering) so that membership checks
-	 * are O(log n), matching the project's pattern of using SortedData wherever a
-	 * Set/Map would be used in the standard library.
+	 * Stored as a SortedData of UUIDs so that membership checks are O(log n),
+	 * matching the project's pattern of using SortedData wherever a Set/Map would
+	 * normally be used.
 	 * <p>
 	 * Non-final because {@link #unhide(UUID)} rebuilds it without the target entry
-	 * (SortedData has no remove operation).
+	 * since SortedData has no remove operation.
 	 */
 	private SortedData<UUID> hiddenMessages;
+
+	private static final Comparator<UUID> UUID_COMPARATOR = new Comparator<UUID>() {
+		@Override
+		public int compare(UUID a, UUID b) {
+			return a.compareTo(b);
+		}
+	};
 
 	public Post(UUID id, UUID poster, String topic) {
 		this.id = id;
 		this.poster = poster;
 		this.topic = topic;
 		this.messages = SortedDataFactory.makeSortedData(MessageComparator.getInstance());
-		this.hiddenMessages = SortedDataFactory.makeSortedData(Comparator.naturalOrder());
+		this.hiddenMessages = SortedDataFactory.makeSortedData(UUID_COMPARATOR);
 	}
 
 	public Post(UUID id) {
@@ -47,12 +54,15 @@ public class Post implements HasUUID {
 	}
 
 	@Override
-	public UUID getUUID() { return id; }
+	public UUID getUUID() {
+		return id;
+	}
 
 	// --------------------------- hidden-message API ---------------------------
 
 	/**
 	 * Marks a message on this post as hidden.
+	 *
 	 * @param messageId the UUID of the message to hide
 	 * @return true if the message was newly hidden, false if it was already hidden
 	 */
@@ -62,18 +72,26 @@ public class Post implements HasUUID {
 
 	/**
 	 * Removes the hidden flag from a message on this post.
+	 *
 	 * @param messageId the UUID of the message to un-hide
 	 * @return true if the message was previously hidden and is now un-hidden,
 	 *         false if it was not hidden in the first place
 	 */
 	public boolean unhide(UUID messageId) {
-		if (hiddenMessages.get(messageId) == null) return false;
-
-		SortedData<UUID> rebuilt = SortedDataFactory.makeSortedData(Comparator.naturalOrder());
-		for (Iterator<UUID> it = hiddenMessages.getAll(); it.hasNext(); ) {
-			UUID id = it.next();
-			if (!id.equals(messageId)) rebuilt.insert(id);
+		if (hiddenMessages.get(messageId) == null) {
+			return false;
 		}
+
+		SortedData<UUID> rebuilt = SortedDataFactory.makeSortedData(UUID_COMPARATOR);
+
+		for (Iterator<UUID> it = hiddenMessages.getAll(); it.hasNext(); ) {
+			UUID currentId = it.next();
+
+			if (!currentId.equals(messageId)) {
+				rebuilt.insert(currentId);
+			}
+		}
+
 		hiddenMessages = rebuilt;
 		return true;
 	}
@@ -88,7 +106,7 @@ public class Post implements HasUUID {
 
 	/**
 	 * @return an iterator over every message currently hidden on this post.
-	 *         Used by the persistence layer (Task 3) to serialise hidden state.
+	 *         Used by the persistence layer to serialise hidden state.
 	 */
 	public Iterator<UUID> getHiddenMessageIds() {
 		return hiddenMessages.getAll();
@@ -100,20 +118,27 @@ public class Post implements HasUUID {
 	 * Returns the messages on this post that should be visible to a viewer.
 	 * <p>
 	 * Admins see every message regardless of its hidden status; non-admins
-	 * (regular users and guests) see only messages whose UUID is not currently
-	 * flagged hidden.
+	 * see only messages whose UUID is not currently flagged hidden.
 	 *
 	 * @param isAdmin whether the viewer has admin privileges
 	 * @return a SortedData containing the messages this viewer is allowed to see
 	 */
 	public SortedData<Message> getVisibleMessages(boolean isAdmin) {
-		if (isAdmin) return messages;
-
-		SortedData<Message> visible = SortedDataFactory.makeSortedData(MessageComparator.getInstance());
-		for (Iterator<Message> it = messages.getAll(); it.hasNext(); ) {
-			Message m = it.next();
-			if (!isHidden(m.id())) visible.insert(m);
+		if (isAdmin) {
+			return messages;
 		}
+
+		SortedData<Message> visible =
+				SortedDataFactory.makeSortedData(MessageComparator.getInstance());
+
+		for (Iterator<Message> it = messages.getAll(); it.hasNext(); ) {
+			Message message = it.next();
+
+			if (!isHidden(message.id())) {
+				visible.insert(message);
+			}
+		}
+
 		return visible;
 	}
 }
