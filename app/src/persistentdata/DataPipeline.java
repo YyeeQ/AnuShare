@@ -21,10 +21,6 @@ public class DataPipeline<T, S> {
 		this.filename = filename;
 	}
 
-
-	private static final UserDAO users = UserDAO.getInstance();
-	private static final PostDAO posts = PostDAO.getInstance();
-
 	public void writeFrom(Iterator<T> iterator) {
 		try {
 			Writer writer = ioFactory.writer(filename);

@@ -5,7 +5,7 @@ import dao.model.User;
 import java.util.UUID;
 
 /**
- * TODO: Document your schema here
+ * Schema: id, role, username, password
  */
 public class UserSerializer implements Serializer<User, String[]> {
 	@Override
