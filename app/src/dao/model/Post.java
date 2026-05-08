@@ -1,10 +1,8 @@
 package dao.model;
-
 import dao.MessageComparator;
-import sorteddata.SortedData;
-import sorteddata.SortedDataFactory;
-
-import java.util.UUID;
+import moderation.ModerationTools;
+import sorteddata.*;
+import java.util.*;
 
 public class Post implements HasUUID {
 	public final UUID id;
@@ -22,10 +20,21 @@ public class Post implements HasUUID {
 	public Post(UUID id) {
 		this(id, null, null);
 	}
-	
+
 	public SortedData<Message> getVisibleMessages(boolean isAdmin) {
-		// TODO: task 2
-		return null;
+		if (isAdmin) {
+			return messages;
+		}
+		SortedData<Message> visibleMessages =
+				SortedDataFactory.makeSortedData(MessageComparator.getInstance());
+		Iterator<Message> iterator = messages.getAll();
+		while (iterator.hasNext()) {
+			Message message = iterator.next();
+			if (!ModerationTools.isHidden(message.id())) {
+				visibleMessages.insert(message);
+			}
+		}
+		return visibleMessages;
 	}
 
 	public UUID getUUID() { return id; }
