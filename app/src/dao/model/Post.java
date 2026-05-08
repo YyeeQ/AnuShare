@@ -109,6 +109,7 @@ public class Post implements HasUUID {
 	 *         Used by the persistence layer to serialise hidden state.
 	 */
 	public Iterator<UUID> getHiddenMessageIds() {
+
 		return hiddenMessages.getAll();
 	}
 

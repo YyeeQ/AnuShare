@@ -131,6 +131,7 @@ public class ModerationTools {
 			Post post = postIt.next();
 			for (Iterator<Message> msgIt = post.messages.getAll(); msgIt.hasNext(); ) {
 				if (msgIt.next().id().equals(messageId)) return post;
+
 			}
 		}
 		return null;
