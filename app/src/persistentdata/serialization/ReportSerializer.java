@@ -1,6 +1,6 @@
 package persistentdata.serialization;
 
-import moderation.Report;
+import dao.model.Report;
 
 import java.util.UUID;
 
