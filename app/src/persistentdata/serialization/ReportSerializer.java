@@ -5,15 +5,15 @@ import dao.model.Report;
 import java.util.UUID;
 
 /**
- * Converts between Reports and String[] using schema: messageId, userId, timestamp
+ * Converts between Reports and String[] using schema: message, user, timestamp
  */
 public class ReportSerializer implements Serializer<Report, String[]> {
 
     @Override
     public String[] serialize(Report object) {
         return new String[]{
-                object.messageId().toString(),
-                object.userId().toString(),
+                object.message().toString(),
+                object.user().toString(),
                 String.valueOf(object.timestamp())
         };
     }
