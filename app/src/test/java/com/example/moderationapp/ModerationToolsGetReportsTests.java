@@ -1,3 +1,5 @@
+package com.example.moderationapp;
+
 import com.example.moderationapp.data.dao.PostDAO;
 import com.example.moderationapp.data.dao.ReportDAO;
 import com.example.moderationapp.data.dao.UserDAO;
