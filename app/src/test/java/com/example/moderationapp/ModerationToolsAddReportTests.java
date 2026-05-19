@@ -1,20 +1,21 @@
-import dao.MessageComparator;
-import dao.PostDAO;
-import dao.ReportDAO;
-import dao.UserDAO;
-import dao.model.Message;
-import dao.model.Post;
-import dao.model.Report;
-import dao.model.User;
-import moderation.ModerationTools;
+import com.example.moderationapp.data.dao.MessageComparator;
+import com.example.moderationapp.data.dao.PostDAO;
+import com.example.moderationapp.data.dao.ReportDAO;
+import com.example.moderationapp.data.dao.UserDAO;
+import com.example.moderationapp.data.model.Message;
+import com.example.moderationapp.data.model.Post;
+import com.example.moderationapp.data.model.Report;
+import com.example.moderationapp.data.model.User;
+import com.example.moderationapp.data.persistence.DataManager;
+import com.example.moderationapp.data.persistence.DataPipeline;
+import com.example.moderationapp.data.persistence.serialization.MessageSerializer;
+import com.example.moderationapp.data.persistence.serialization.ReportSerializer;
+import com.example.moderationapp.logic.moderation.ModerationTools;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import persistentdata.DataManager;
-import persistentdata.DataPipeline;
-import persistentdata.serialization.MessageSerializer;
-import persistentdata.serialization.ReportSerializer;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Iterator;
@@ -358,7 +359,7 @@ public class ModerationToolsAddReportTests {
 		assertNotNull(first);
 		assertSame(first, second);
 
-		DataManager manager = new DataManager();
+		DataManager manager = newDataManagerViaReflection();
 		UUID savedPostId = UUID.randomUUID();
 		User savedUser = new User(UUID.randomUUID(), User.Role.Member, "savedUser", "password");
 		Post savedPost = new Post(savedPostId, savedUser.id(), "saved post");
@@ -386,6 +387,14 @@ public class ModerationToolsAddReportTests {
 			count++;
 		}
 		return count;
+	}
+
+	private static DataManager newDataManagerViaReflection() throws Exception {
+		// DataManager has a private constructor; reflection allows the test to
+		// build an isolated instance without changing production code visibility.
+		Constructor<DataManager> constructor = DataManager.class.getDeclaredConstructor();
+		constructor.setAccessible(true);
+		return constructor.newInstance();
 	}
 
 	private static void replacePipeline(DataManager manager, String fieldName, DataPipeline<?, String[]> pipeline)
