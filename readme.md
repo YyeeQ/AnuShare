@@ -1,115 +1,113 @@
-# Hackathon 2026s1: moderation tools
+Summary of Deliverables & Deadlines
+Deliverable
 
-We implemented Admin users back in week 3 of the miniproject, but they don't have any functionality. Today, we will implement additional moderation tools to help Admins. Precisely speaking, we are interested in a program flow where Users may report messages. Admins are then able to review reported messages, and hide messages that contain e.g. abusive content. This additional functionality has some skeleton code provided in the module `moderation`.
+Deadline
 
-As a group, you must decide on the architecture for your program. You are provided a copy of the miniproject from week 5, with  solutions to some lab tasks, to use as a base.
+Code Deadline
 
-Follow the following guidelines when writing code:
-- You may write your code anywhere within the `app/src` folder, including by adding new files and classes.
-- Do not modify the contents of the `ReactionType` enum.
+Thursday 21 May, 11:59 PM
 
-To reiterate, you may augment existing code, including that which is unrelated to the hackathon, as you please. For example, if you want to implement a red-black tree, you may create a new package within `app/src/persistentdata` to do so.
+Slide Deck Upload
 
-### Getting started
+Friday 22 May, 5:00 PM
 
-It is necessary to make some design decisions about the additional module's architecture. We strongly recommend you begin by skimming each of the tasks, not just your own, to understand how the module will come together. Then, you should discuss the architecture *as a group*, considering questions such as:
+Live Presentation
 
-- How will we abstractly represent a report?
-- Which data structures will we use to store multiple reports?
-- How will we represent a hidden message?
-- How can we store these types of data persistently?
-- What features are bottlenecks? In other words, which members of the group must finish certain aspects of their task before others can begin?
-- Are any aspects of the design important to allow you to complete your task efficiently (in terms of programming time, runtime, or memory usage)? You may need to negotiate some trade-offs with other members here.
+Monday 25 May, 9:00 AM - 11:00 AM
 
-Only once you have reached a consensus about design should you begin programming.
+Brief
+During Hackathon 1, you built the core application logic for a message moderation system (e.g., reporting and visibility control). This second hackathon challenges you to bring that logic to life with a native Android application. The Week 7 Miniproject provided a basic visual frontend for the backend system associated with the Miniproject broadly and Hackathon 1.
 
-### Git and submission notes
+You have until 11:59 PM Thursday to complete the build, and your hackathon presentation is due to be delivered during the Minute Madness lecture on Monday of Week 12.
 
-As a group, please make a single fork of the `hackathon` repo. When forking, please leave the project name and slug unchanged, and set the visibility to private.
+Your Team Has Two Goals
+Android App Design and Implementation:
+Design and implement a polished, intuitive user interface for the app.
 
-In the GitLab web view for your fork, go to **Manage** > **Members** in the sidebar. Check that the COMP2100 marker bot has been added (let staff know if it hasn't), and add the accounts of each of the other group members. You will want to give them **Maintainer** permissions, so that they can freely push to the repo.
+Feature Enhancement:
+Use your imagination and ambition to conceive and design one significant new feature that adds value to the app.
 
-Each group member should then clone this fork to their personal device to work on the hackathon. You will need to set up your clone in IntelliJ by setting the SDK and importing JUnit, like in the first part of the miniproject.
+You are only limited by your own imagination, however, examples include: (low ambition, easy feature) a reports analytics dashboard for administrators to monitor reports, or (higher ambition, challenging feature) an asynchronous user reaction system (e.g., likes, emojis) with reaction data stored and persisted consistently with the app's architecture.
 
-You may use Git branches as you please throughout your group, but assessment will be based purely on the final commit to the `main` branch before the deadline. Git etiquette will not be considered during marking.
+The architecture around the feature should make thoughtful use of design patterns.
 
-Your code **must** compile to receive marks.
+It should demonstrate originality and thoughtful integration with your app's purpose.
 
-## Task information
+New features that introduce additional per-message state (e.g., reactions) should avoid modifying the Message data model (e.g., be SOLID).
 
-### Task 1: reporting functionality (software design, data structures)
+Deliverables & Deadlines
+There are two distinct deadlines for your deliverables.
 
-Any User will be able to report any Message for moderators to review.
+Code Submission (Due: Thursday 21 May, 11:59 PM)
 
-\[50%] Reports are transmitted to the application through a call to `boolean ModerationTools.addReport(UUID message, UUID user, long timestamp)` which returns true if the report was successfully received. If the message or user does not exist, or if that user has already reported that message, do nothing and return false.
+Your complete code must be pushed to your team's (i.e., leader's) GitLab repository by 11:59 PM, Thursday of this week.
 
-They are also able to retract their reports through `ModerationTools.removeReport`. This returns true if the report was successfully removed, and false if the user was not reporting that message or if either UUID does not exist. There is no need to maintain a record of which Users have removed reports.
+The repository must contain all the code used to produce your demo video.
 
-You must also implement the function `ModerationTools.hasReported`, which checks whether the given user has reported the given message.
+Presentation Submission (Due: Friday 22 May, 5:00 PM)
 
-Note that even if a message is 'hidden' by a moderator, the reports attached to it should still remain in memory.
+Your final presentation must be uploaded by 5:00 pm, Friday of this week.
 
-\[30%] Like the rest of our application, performance is important. You should choose an appropriate architecture to store reports, with particular consideration towards the use of classes and data structures to maximise efficiency. This performance requirement applies only to the code written for this task, not any pre-existing code in the project.
+You must use the official slide deck template provided for the Minute Madness lecture (to be released on Tuesday).
 
-\[20%] Your code should be high quality.
+Your demo video must be hosted on a streaming service (e.g., YouTube, Vimeo) and embedded or linked within your slides. This is a mandatory step to keep the presentation file size manageable.
 
-### Task 2: hiding messages functionality (data structures, trees)
+The demo video must be no longer than 1 minute.
 
-Admin users should be able to hide and unhide Messages at will for moderation purposes. Hidden messages will not be visible to non-Admin users.
+The entire presentation is 3 minutes.
 
-\[40%] Implement the function `ModerationTools.setHidden(UUID message, UUID user, boolean hidden)`. This function should check that the UUIDs exist and that the corresponding User is an Admin. If these checks fail, do nothing and return false. Otherwise, update the message's state according to the hidden parameter. Note that when a message is first posted, it is visible by default.
+Your team will be responsible for narrating your demonstration live via microphone in the lecture theatre during the Minute Madness presentations.
 
-\[40%] You must also update the message-fetching logic to react to Messages changing visibility. In particular, Admin users should always be able to see messages, but other Users and Guests should only be able to see non-hidden messages. To implement this, we have created the function `Post.getVisibleMessages(boolean isAdmin)`. You should implement this function to return a SortedData that, if isAdmin is true, contains all the messages to that post; if isAdmin is false, only the non-hidden messages should be included.
+Guidance
+Time Management & Scope
+This is a time-boxed challenge. To simulate a rapid development cycle, each team member should spend no more than 8 hours on this task. This constraint requires your team to plan carefully, prioritise essential features, and allocate tasks strategically. Focus on delivering a polished proof-of-concept within this timeframe.
 
-\[20%] Your code should be high quality.
+Planning & Collaboration
+Brainstorm your app's design and new feature.
 
-### Task 3: Persistence and refactoring
+Decide how the user interface will connect to your existing logic.
 
-\[60%] The functionality for both task 1 (user reports) and task 2 (hiding messaages) should persist across runs of the application. There are no methods within the provided ModerationTools interface that must be implemented; instead, you must modify the existing code for persistence to support the changes made in Task 1 and Task 2.
+Delegate tasks effectively to stay within the time limit.
 
-The data written to persistent storage for this task will also be read by other applications, some of which will be written in programming languages other than Java. Therefore, when choosing how to represent this data, you should select a portable representation.
+Continue using your team GitLab repository to organize your group's work.
 
-\[40%] The code that you write for this task must be high quality, beyond the level expected for the other tasks. Check your code for any remaining code smells and refactor if they are present.
+Marking Rubric for the Final Presentation (3 minutes, 16.5%)
+Marks are split across four criteria:
 
-### Task 4: viewing reports (design patterns)
+1. App Design Showcase (5%)
+Assesses the presentation of your app's design and user interface.
 
-Moderators should be able to view reports submitted by Users in order to act on them.
+Design Rationale: Did you clearly justify your app's design choices?
 
-\[40%] To do this, implement the function `Iterator<Message> ModerationTools.getReportedMessages(String strategy, int amount)`
-This function expects that strategy is either "OLDEST" or "MOST" and that amount is a positive integer. You should throw an exception otherwise.
+Visual Appeal: Is the interface professional and aesthetically pleasing?
 
-If the strategy is "OLDEST", return the reported Messages ordered by the timestamp of their oldest non-removed report. That is, the post with the oldest report should be returned first. If the strategy is "MOST", then the returned Messages should be sorted by the number of active (non-removed) reports on them. That is, the post with the most active reports should be returned first.
+Usability: Does the design show an intuitive, easy-to-use flow?
 
-If there is a tie in the relevant ordering -- meaning two Messages have oldest reports with the same timestamp, or the same number of reports -- you may return those Messages in an arbitrary order.
+2. New Feature (5%)
+Assesses the creativity and value of your new feature.
 
-Do not return Messages that have zero active reports. You should return the specified amount of messages, or fewer if there are insufficiently many reported Messages. If a message has been reported multiple times, it should only be included at most once in the output.
+Originality & Ambition: How original and ambitious was the feature concept?
 
-\[40%] It is mandatory that you use both the Iterator and Factory patterns while implementing this task. You must decide where and how these patterns can most appropriately be implemented.
+Value & Integration: Does the feature add meaningful value and fit seamlessly into the app?
 
-\[20%] Your code should be high quality.
+Clarity of Concept: Is the architecture of the new features principled and based on Software Construciton concepts?
 
-### Task 5: unit testing
+3. Final Deliverable Demonstration (5%)
+Assesses the quality and effectiveness of your demo.
 
-In this task, you will use JUnit4 to write test cases for some of the functionality implemented for this hackathon.
+Effectiveness: Did the demo showcase both the app's design and the new feature in action?
 
-\[40%] Write unit tests that achieve branch-complete coverage on `ModerationTools.addReport`, including any submethods called from addReport that were written by your team in this hackathon. Refer to Task 1 for the specification of this function. Write these tests in the ModerationToolsAddReportTests class in the unit test folder.
+Clarity & Polish: Was the demo clear and professional?
 
-\[40%] Write black-box unit tests for the method `ModerationTools.getReportedMessages`. Your tests should be able to distinguish between a correct and faulty implementation of getReportedMessages, assuming that all other functionality is correct. Refer to Task 4 for the specification of this function. Write these tests in the ModerationToolsGetReportsTests class.
+Functionality: Did the demo prove you produced a working, cohesive application?
 
-These tests do not need to be parameterised; please test only the implementation in the codebase, using only `getReportedMessages` as an entry point for testing.
+4. Presentation (1.5%)
+Assesses the quality of your presentation.
 
-\[20%] Your code should be high quality.
+Clarity & Polish: Was the presentation clear, professional and rehearsed?
 
-### Group task (UML)
+Pacing: Was the presentation well-paced?
 
-Produce a UML diagram illustrating the architecture of the moderation tools.
 
-\[50%] At minimum, your UML diagram should include at least
-- five classes, including the ModerationTools class
-- one private, one protected, and one public field
-- two static and two non-static methods
-- one example of each of composition, aggregation, and association
-
-\[50%] Your UML diagram should be informative and useful to a reader who wants to understand the architecture of your project. This means the selection of features should be wide enough to show the reader the overall architecture but narrow enough that irrelevancies are excluded, and they should be arranged well.
-
-You can either draw your diagram on paper and take a photo, or use online tools and take a screenshot. Once you've finished, upload this photo or screenshot to your Git fork by replacing the file `uml.png`.
+Important Note on Mark Allocation
+Each team will receive a single mark based on the above rubric.
