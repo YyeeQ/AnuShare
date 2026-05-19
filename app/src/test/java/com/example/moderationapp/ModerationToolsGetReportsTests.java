@@ -1,10 +1,10 @@
-import dao.PostDAO;
-import dao.ReportDAO;
-import dao.UserDAO;
-import dao.model.Message;
-import dao.model.Post;
-import dao.model.User;
-import moderation.ModerationTools;
+import com.example.moderationapp.data.dao.PostDAO;
+import com.example.moderationapp.data.dao.ReportDAO;
+import com.example.moderationapp.data.dao.UserDAO;
+import com.example.moderationapp.data.model.Message;
+import com.example.moderationapp.data.model.Post;
+import com.example.moderationapp.data.model.User;
+import com.example.moderationapp.logic.moderation.ModerationTools;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
