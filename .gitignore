@@ -1,0 +1,23 @@
+# Gradle / Android build output
+.gradle/
+build/
+**/build/
+gradle/*.properties
+
+# Local Android SDK path and machine-specific config
+local.properties
+
+# Android Studio / IntelliJ local workspace files
+.idea/
+*.iml
+
+# Java / Kotlin compiled output
+out/
+*.class
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
