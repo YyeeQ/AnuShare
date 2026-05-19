@@ -3,7 +3,9 @@ package com.example.moderationapp.ui;
 import android.app.Activity;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -26,7 +28,9 @@ import com.example.moderationapp.data.persistence.DataManager;
 import com.example.moderationapp.data.persistence.io.AndroidIOFactory;
 import com.example.moderationapp.logic.moderation.ModerationTools;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -120,13 +124,22 @@ public class MainActivity extends Activity {
             content.addView(admin);
         }
 
+        List<Post> posts = new ArrayList<>();
         for (Iterator<Post> it = PostDAO.getInstance().getAll(); it.hasNext(); ) {
-            Post post = it.next();
+            posts.add(it.next());
+        }
+        posts.sort((left, right) -> Long.compare(latestActivity(right), latestActivity(left)));
+
+        for (Post post : posts) {
             Button row = secondaryButton(post.topic);
             row.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
             row.setOnClickListener(v -> showPostDetail(post));
             content.addView(row);
         }
+
+        Button createPost = primaryButton("Create post");
+        createPost.setOnClickListener(v -> showCreatePost());
+        content.addView(createPost);
 
         Button signOut = secondaryButton("Sign out");
         signOut.setOnClickListener(v -> {
@@ -134,6 +147,113 @@ public class MainActivity extends Activity {
             showLogin();
         });
         content.addView(signOut);
+        setPage(content);
+    }
+
+    private void showCreatePost() {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(24), dp(20), dp(20));
+        content.setBackgroundColor(Color.rgb(247, 248, 250));
+
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        topBar.setLayoutParams(blockParams());
+
+        Button cancel = secondaryButton("Cancel");
+        cancel.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0f));
+        cancel.setOnClickListener(v -> showPostList());
+        topBar.addView(cancel);
+
+        TextView title = new TextView(this);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f);
+        title.setLayoutParams(titleParams);
+        title.setGravity(Gravity.CENTER);
+        title.setText("Create post");
+        title.setTextSize(22);
+        title.setTextColor(Color.rgb(21, 23, 26));
+        topBar.addView(title);
+
+        Button post = compactButton("Post");
+        post.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0f));
+        setActionButtonEnabled(post, false);
+        topBar.addView(post);
+
+        content.addView(topBar);
+        content.addView(smallText(currentUser.username()));
+
+        EditText postTitle = input("Title", false);
+        content.addView(postTitle);
+
+        EditText postContent = new EditText(this);
+        postContent.setHint("Content");
+        postContent.setInputType(InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        postContent.setSingleLine(false);
+        postContent.setMinLines(6);
+        postContent.setGravity(Gravity.TOP | Gravity.START);
+        postContent.setLayoutParams(blockParams());
+        content.addView(postContent);
+
+        TextWatcher watcher = new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                boolean ready = !postTitle.getText().toString().trim().isEmpty()
+                        && !postContent.getText().toString().trim().isEmpty();
+                setActionButtonEnabled(post, ready);
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        };
+        postTitle.addTextChangedListener(watcher);
+        postContent.addTextChangedListener(watcher);
+
+        post.setOnClickListener(v -> {
+            String topic = postTitle.getText().toString().trim();
+            String body = postContent.getText().toString().trim();
+            if (topic.isEmpty() || body.isEmpty()) {
+                toast("Please enter a title and content");
+                return;
+            }
+
+            Post newPost = new Post(UUID.randomUUID(), currentUser.id(), topic);
+            Message openingMessage = new Message(
+                    UUID.randomUUID(),
+                    currentUser.id(),
+                    newPost.id,
+                    System.currentTimeMillis(),
+                    body);
+
+            boolean addedPost = PostDAO.getInstance().add(newPost);
+            boolean addedMessage = newPost.messages.insert(openingMessage);
+            if (!addedPost || !addedMessage) {
+                toast("Unable to create post");
+                return;
+            }
+
+            saveInBackground(() -> {
+                toast("Post created");
+                showPostList();
+            });
+        });
+
         setPage(content);
     }
 
@@ -254,6 +374,14 @@ public class MainActivity extends Activity {
         return button;
     }
 
+    private void setActionButtonEnabled(Button button, boolean enabled) {
+        button.setEnabled(enabled);
+        button.setTextColor(Color.WHITE);
+        button.setBackgroundColor(enabled
+                ? Color.rgb(36, 87, 214)
+                : Color.rgb(170, 176, 186));
+    }
+
     private Button compactButton(String text) {
         Button button = new Button(this);
         button.setText(text);
@@ -287,6 +415,14 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         params.setMargins(0, dp(6), 0, dp(6));
         return params;
+    }
+
+    private long latestActivity(Post post) {
+        long latest = Long.MIN_VALUE;
+        for (Iterator<Message> it = post.messages.getAll(); it.hasNext(); ) {
+            latest = Math.max(latest, it.next().timestamp());
+        }
+        return latest;
     }
 
     private void setPage(View view) {
