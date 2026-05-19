@@ -65,7 +65,8 @@ public class RandomContentGenerator {
 
         String content = String.format("Hello from %s", user.username());
 
-        long timestamp =  System.currentTimeMillis() - Math.abs(random.nextLong() % 200000);
+        long maxAgeMs = 7L * 24L * 60L * 60L * 1000L;
+        long timestamp = System.currentTimeMillis() - Math.abs(random.nextLong() % maxAgeMs);
 
         Message message = new Message(UUID.randomUUID(), user.getUUID(), post.getUUID(), timestamp, content);
         post.messages.insert(message);
