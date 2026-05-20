@@ -59,6 +59,16 @@ public class MessageReports implements HasUUID {
         return reports.isEmpty() ? Long.MAX_VALUE : reports.get(0).timestamp();
     }
 
+    public Report.Priority highestPriority() {
+        Report.Priority highest = Report.Priority.LOW;
+        for (Report report : reports) {
+            if (report.priority().rank() > highest.rank()) {
+                highest = report.priority();
+            }
+        }
+        return highest;
+    }
+
     public Iterator<Report> all() {
         return reports.iterator();
     }
