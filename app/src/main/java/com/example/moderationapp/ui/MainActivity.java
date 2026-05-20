@@ -18,10 +18,12 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.moderationapp.R;
 import com.example.moderationapp.data.dao.PostDAO;
 import com.example.moderationapp.data.dao.RandomContentGenerator;
 import com.example.moderationapp.data.dao.ReportDAO;
@@ -34,12 +36,10 @@ import com.example.moderationapp.data.model.User;
 import com.example.moderationapp.data.persistence.DataManager;
 import com.example.moderationapp.data.persistence.io.AndroidIOFactory;
 import com.example.moderationapp.logic.moderation.ModerationTools;
-import com.example.moderationapp.logic.util.TimeFormatter;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,6 +50,9 @@ public class MainActivity extends Activity {
     private final DataManager dataManager = DataManager.getInstance();
     private final ExecutorService diskExecutor = Executors.newSingleThreadExecutor();
 
+    private enum Page { LOADING, LOGIN, REGISTER, POST_LIST, CREATE_POST, POST_DETAIL, ADMIN }
+    private Page currentPage = Page.LOADING;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -58,12 +61,45 @@ public class MainActivity extends Activity {
         root = new FrameLayout(this);
         setContentView(root);
         
+        showLoading();
+        
         // Load data in background
         diskExecutor.execute(() -> {
             dataManager.readAll();
             seedDemoDataIfEmpty();
             runOnUiThread(this::showLogin);
         });
+    }
+
+    @Override
+    public void onBackPressed() {
+        switch (currentPage) {
+            case REGISTER:
+                showLogin();
+                break;
+            case CREATE_POST:
+            case POST_DETAIL:
+            case ADMIN:
+                showPostList();
+                break;
+            case POST_LIST:
+            case LOGIN:
+            case LOADING:
+            default:
+                super.onBackPressed();
+                break;
+        }
+    }
+
+    private void showLoading() {
+        currentPage = Page.LOADING;
+        LinearLayout layout = new LinearLayout(this);
+        layout.setGravity(Gravity.CENTER);
+        ProgressBar pb = new ProgressBar(this);
+        layout.addView(pb);
+        
+        root.removeAllViews();
+        root.addView(layout);
     }
 
     private void saveInBackground(Runnable onDone) {
@@ -74,11 +110,67 @@ public class MainActivity extends Activity {
     }
 
     private void showLogin() {
-        LinearLayout form = page("Sign in");
-        EditText username = input("Username", false);
-        EditText password = input("Password", true);
+        currentPage = Page.LOGIN;
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(Color.parseColor("#F9FCFF"));
+
+        // Brand area: logo + app name
+        LinearLayout brandArea = new LinearLayout(this);
+        brandArea.setOrientation(LinearLayout.VERTICAL);
+        brandArea.setGravity(Gravity.CENTER_HORIZONTAL);
+        brandArea.setPadding(dp(24), dp(56), dp(24), dp(28));
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.logo);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(100), dp(100));
+        logoParams.gravity = Gravity.CENTER_HORIZONTAL;
+        logo.setLayoutParams(logoParams);
+        brandArea.addView(logo);
+
+        TextView appName = new TextView(this);
+        appName.setText("AnuShare");
+        appName.setTextSize(14);
+        appName.setTextColor(Color.rgb(93, 102, 117));
+        appName.setPadding(0, dp(8), 0, 0);
+        appName.setGravity(Gravity.CENTER);
+        applyTimes(appName, Typeface.NORMAL);
+        brandArea.addView(appName);
+
+        content.addView(brandArea);
+
+        // Form area
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(24), dp(8), dp(24), dp(28));
+
+        TextView heading = new TextView(this);
+        heading.setText("Sign in");
+        heading.setTextSize(28);
+        heading.setTextColor(Color.parseColor("#081F5C"));
+        heading.setPadding(0, 0, 0, dp(16));
+        applyTimes(heading, Typeface.BOLD);
+        form.addView(heading);
+
+        form.addView(sectionLabel("USERNAME"));
+        EditText username = input("Enter username", false);
         form.addView(username);
+
+        View fieldGap = new View(this);
+        fieldGap.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(8)));
+        form.addView(fieldGap);
+
+        form.addView(sectionLabel("PASSWORD"));
+        EditText password = input("Enter password", true);
         form.addView(password);
+
+        View gap = new View(this);
+        gap.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(20)));
+        form.addView(gap);
 
         Button signIn = primaryButton("Sign in");
         signIn.setOnClickListener(v -> {
@@ -88,22 +180,90 @@ public class MainActivity extends Activity {
                 return;
             }
             currentUser = user;
-            showPostList();
+            if (user.role() == User.Role.Admin) {
+                showAdminPanel();
+            } else {
+                showPostList();
+            }
         });
         form.addView(signIn);
+
+        View btnGap = new View(this);
+        btnGap.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(10)));
+        form.addView(btnGap);
 
         Button register = secondaryButton("Create account");
         register.setOnClickListener(v -> showRegister());
         form.addView(register);
-        setPage(form);
+
+        content.addView(form);
+        scrollView.addView(content);
+        root.removeAllViews();
+        root.addView(scrollView);
     }
 
     private void showRegister() {
-        LinearLayout form = page("Create account");
-        EditText username = input("Username", false);
-        EditText password = input("Password", true);
+        currentPage = Page.REGISTER;
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(Color.parseColor("#F9FCFF"));
+
+        // Brand area: logo + app name
+        LinearLayout brandArea = new LinearLayout(this);
+        brandArea.setOrientation(LinearLayout.VERTICAL);
+        brandArea.setGravity(Gravity.CENTER_HORIZONTAL);
+        brandArea.setPadding(dp(24), dp(48), dp(24), dp(20));
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.logo);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(80), dp(80));
+        logoParams.gravity = Gravity.CENTER_HORIZONTAL;
+        logo.setLayoutParams(logoParams);
+        brandArea.addView(logo);
+
+        TextView appName = new TextView(this);
+        appName.setText("AnuShare");
+        appName.setTextSize(14);
+        appName.setTextColor(Color.rgb(93, 102, 117));
+        appName.setPadding(0, dp(8), 0, 0);
+        appName.setGravity(Gravity.CENTER);
+        applyTimes(appName, Typeface.NORMAL);
+        brandArea.addView(appName);
+
+        content.addView(brandArea);
+
+        // Form area
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(24), dp(8), dp(24), dp(28));
+
+        TextView heading = new TextView(this);
+        heading.setText("Create account");
+        heading.setTextSize(24);
+        heading.setTextColor(Color.parseColor("#081F5C"));
+        heading.setPadding(0, 0, 0, dp(16));
+        applyTimes(heading, Typeface.BOLD);
+        form.addView(heading);
+
+        form.addView(sectionLabel("USERNAME"));
+        EditText username = input("Enter username", false);
         form.addView(username);
+
+        View fieldGap = new View(this);
+        fieldGap.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(8)));
+        form.addView(fieldGap);
+
+        form.addView(sectionLabel("PASSWORD"));
+        EditText password = input("Enter password", true);
         form.addView(password);
+
+        View gap = new View(this);
+        gap.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(20)));
+        form.addView(gap);
 
         Button create = primaryButton("Register");
         create.setOnClickListener(v -> {
@@ -117,13 +277,22 @@ public class MainActivity extends Activity {
         });
         form.addView(create);
 
+        View btnGap = new View(this);
+        btnGap.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(10)));
+        form.addView(btnGap);
+
         Button back = secondaryButton("Back to sign in");
         back.setOnClickListener(v -> showLogin());
         form.addView(back);
-        setPage(form);
+
+        content.addView(form);
+        scrollView.addView(content);
+        root.removeAllViews();
+        root.addView(scrollView);
     }
 
     private void showPostList() {
+        currentPage = Page.POST_LIST;
         boolean isAdmin = currentUser.role() == User.Role.Admin;
 
         FrameLayout screen = new FrameLayout(this);
@@ -158,6 +327,7 @@ public class MainActivity extends Activity {
         for (Iterator<Post> it = PostDAO.getInstance().getAll(); it.hasNext(); ) {
             posts.add(it.next());
         }
+        // Simplified sort for API compatibility
         posts.sort((left, right) -> Long.compare(postTimestamp(right, isAdmin), postTimestamp(left, isAdmin)));
 
         if (posts.isEmpty()) {
@@ -182,6 +352,7 @@ public class MainActivity extends Activity {
     }
 
     private void showCreatePost() {
+        currentPage = Page.CREATE_POST;
         ScrollView scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
         scrollView.setBackgroundColor(Color.parseColor("#F9FCFF"));
@@ -220,23 +391,21 @@ public class MainActivity extends Activity {
         applyTimes(title, Typeface.BOLD);
         topBar.addView(title);
 
-        Button post = new Button(this);
-        post.setAllCaps(false);
-        post.setText("Post");
-        post.setTextSize(15);
-        post.setMinHeight(0);
-        post.setMinimumHeight(0);
-        post.setPadding(dp(18), dp(10), dp(18), dp(10));
-        post.setMinWidth(dp(104));
-        post.setMinimumWidth(dp(104));
-        post.setMinHeight(dp(48));
-        post.setMinimumHeight(dp(48));
-        post.setLayoutParams(new LinearLayout.LayoutParams(
+        Button postButton = new Button(this);
+        postButton.setAllCaps(false);
+        postButton.setText("Post");
+        postButton.setTextSize(15);
+        postButton.setPadding(dp(18), dp(10), dp(18), dp(10));
+        postButton.setMinWidth(dp(104));
+        postButton.setMinimumWidth(dp(104));
+        postButton.setMinHeight(dp(48));
+        postButton.setMinimumHeight(dp(48));
+        postButton.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
-        applyTimes(post, Typeface.BOLD);
-        setActionButtonEnabled(post, false);
-        topBar.addView(post);
+        applyTimes(postButton, Typeface.BOLD);
+        setActionButtonEnabled(postButton, false);
+        topBar.addView(postButton);
 
         LinearLayout authorRow = new LinearLayout(this);
         authorRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -309,25 +478,18 @@ public class MainActivity extends Activity {
         content.addView(formSection);
 
         TextWatcher watcher = new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
                 boolean ready = !postTitle.getText().toString().trim().isEmpty()
                         && !postContent.getText().toString().trim().isEmpty();
-                setActionButtonEnabled(post, ready);
+                setActionButtonEnabled(postButton, ready);
             }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-            }
+            @Override public void afterTextChanged(Editable s) {}
         };
         postTitle.addTextChangedListener(watcher);
         postContent.addTextChangedListener(watcher);
 
-        post.setOnClickListener(v -> {
+        postButton.setOnClickListener(v -> {
             String topic = postTitle.getText().toString().trim();
             String body = postContent.getText().toString().trim();
             if (topic.isEmpty() || body.isEmpty()) {
@@ -362,6 +524,7 @@ public class MainActivity extends Activity {
     }
 
     private void showPostDetail(Post post) {
+        currentPage = Page.POST_DETAIL;
         FrameLayout screen = new FrameLayout(this);
         screen.setBackgroundColor(Color.parseColor("#F9FCFF"));
 
@@ -408,47 +571,6 @@ public class MainActivity extends Activity {
 
         root.removeAllViews();
         root.addView(screen);
-    }
-
-    private View messageView(Message message, Runnable onRefresh) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(16), dp(12), dp(16), dp(12));
-        card.setLayoutParams(blockParams());
-        card.setBackgroundColor(Color.WHITE);
-
-        User author = UserDAO.getInstance().getByUUID(message.poster());
-        String byline = author == null ? "Unknown user" : author.username();
-        card.addView(smallText(byline + (message.isHidden() ? " · hidden" : "")));
-        card.addView(bodyText(message.message()));
-
-        LinearLayout actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setGravity(Gravity.END);
-
-        if (currentUser.role() == User.Role.Admin) {
-            Button toggle = compactButton(message.isHidden() ? "Unhide" : "Hide");
-            toggle.setOnClickListener(v -> {
-                if (ModerationTools.setHidden(message.id(), currentUser.id(), !message.isHidden())) {
-                    saveInBackground(onRefresh);
-                }
-            });
-            actions.addView(toggle);
-        } else {
-            Button report = compactButton(ModerationTools.hasReported(message.id(), currentUser.id()) ? "Retract" : "Report");
-            report.setOnClickListener(v -> {
-                boolean changed;
-                if (ModerationTools.hasReported(message.id(), currentUser.id())) {
-                    changed = ModerationTools.removeReport(message.id(), currentUser.id(), System.currentTimeMillis());
-                } else {
-                    changed = ModerationTools.addReport(message.id(), currentUser.id(), System.currentTimeMillis());
-                }
-                if (changed) saveInBackground(onRefresh);
-            });
-            actions.addView(report);
-        }
-        card.addView(actions);
-        return card;
     }
 
     private View postDetailHeader() {
@@ -640,12 +762,20 @@ public class MainActivity extends Activity {
         row.addView(textGroup);
 
         TextView time = new TextView(this);
-        time.setText(TimeFormatter.relative(timestamp));
+        time.setText(relativeTime(timestamp));
         time.setTextSize(11);
         time.setTextColor(Color.rgb(93, 102, 117));
         applyTimes(time, Typeface.NORMAL);
         row.addView(time);
         return row;
+    }
+
+    private String relativeTime(long timestamp) {
+        long delta = (System.currentTimeMillis() - timestamp) / 1000;
+        if (delta < 60) return delta + "s ago";
+        if (delta < 3600) return (delta / 60) + "m ago";
+        if (delta < 86400) return (delta / 3600) + "h ago";
+        return (delta / 86400) + "d ago";
     }
 
     private View replyCountChip(int count, String suffix) {
@@ -655,25 +785,12 @@ public class MainActivity extends Activity {
         chip.setBackground(replyChipBackground());
         chip.setPadding(dp(14), dp(10), dp(14), dp(10));
 
-        ImageView bubble = new ImageView(this);
-        Drawable bubbleDrawable = getDrawable(android.R.drawable.sym_action_chat);
-        if (bubbleDrawable != null) {
-            bubbleDrawable = bubbleDrawable.mutate();
-            bubbleDrawable.setTint(Color.parseColor("#D8C9FB"));
-            bubble.setImageDrawable(bubbleDrawable);
-        }
-        chip.addView(bubble, new LinearLayout.LayoutParams(dp(14), dp(14)));
-
         TextView label = new TextView(this);
-        label.setText(" " + count + " " + suffix);
+        label.setText(count + " " + suffix);
         label.setTextSize(14);
         label.setTextColor(Color.rgb(59, 86, 162));
         applyTimes(label, Typeface.BOLD);
-        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        labelParams.setMargins(dp(4), 0, 0, 0);
-        chip.addView(label, labelParams);
+        chip.addView(label);
         return chip;
     }
 
@@ -693,40 +810,15 @@ public class MainActivity extends Activity {
                 reported ? "Retract" : "Report",
                 reported ? Color.parseColor("#081F5C") : Color.parseColor("#334EAC"));
         button.setOnClickListener(v -> {
+            boolean changed;
             if (reported) {
-                if (ModerationTools.removeReport(message.id(), currentUser.id(), System.currentTimeMillis())) {
-                    saveInBackground(onRefresh);
-                }
+                changed = ModerationTools.removeReport(message.id(), currentUser.id(), System.currentTimeMillis());
             } else {
-                showReportMenu(button, message, onRefresh);
+                changed = ModerationTools.addReport(message.id(), currentUser.id(), System.currentTimeMillis());
             }
+            if (changed) saveInBackground(onRefresh);
         });
         return button;
-    }
-
-    private void showReportMenu(View anchor, Message message, Runnable onRefresh) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        Report.Type[] types = new Report.Type[] {
-                Report.Type.SPAM,
-                Report.Type.HARASSMENT,
-                Report.Type.HATE_SPEECH,
-                Report.Type.VIOLENCE,
-                Report.Type.OTHER
-        };
-        for (int i = 0; i < types.length; i++) {
-            menu.getMenu().add(0, i, i, types[i].label());
-        }
-        menu.setOnMenuItemClickListener(item -> {
-            Report.Type type = types[item.getItemId()];
-            boolean changed = ModerationTools.addReport(
-                    message.id(),
-                    currentUser.id(),
-                    System.currentTimeMillis(),
-                    type);
-            if (changed) saveInBackground(onRefresh);
-            return changed;
-        });
-        menu.show();
     }
 
     private Button detailActionButton(String text, int backgroundColor) {
@@ -764,16 +856,6 @@ public class MainActivity extends Activity {
                 FrameLayout.LayoutParams.WRAP_CONTENT);
         params.gravity = Gravity.BOTTOM;
         dock.setLayoutParams(params);
-
-        View divider = new View(this);
-        divider.setBackgroundColor(Color.parseColor("#E8EEF8"));
-        FrameLayout container = new FrameLayout(this);
-        FrameLayout.LayoutParams dividerParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(1));
-        dividerParams.gravity = Gravity.TOP;
-        divider.setLayoutParams(dividerParams);
-        container.addView(divider);
 
         EditText input = new EditText(this);
         input.setHint("Join the conversation");
@@ -825,8 +907,7 @@ public class MainActivity extends Activity {
         });
         dock.addView(send);
 
-        container.addView(dock);
-        return container;
+        return dock;
     }
 
     private View postListHeader() {
@@ -882,8 +963,6 @@ public class MainActivity extends Activity {
         card.setLayoutParams(blockParams());
         card.setPadding(dp(16), dp(14), dp(16), dp(14));
         card.setBackground(cardBackground(adminPost));
-        card.setClickable(true);
-        card.setFocusable(true);
         card.setOnClickListener(v -> showPostDetail(post));
 
         LinearLayout metaRow = new LinearLayout(this);
@@ -901,33 +980,10 @@ public class MainActivity extends Activity {
         author.setTextSize(11);
         author.setTextColor(Color.rgb(93, 102, 117));
         applyTimes(author, Typeface.NORMAL);
-        LinearLayout authorGroup = new LinearLayout(this);
-        authorGroup.setOrientation(LinearLayout.HORIZONTAL);
-        authorGroup.setGravity(Gravity.CENTER_VERTICAL);
-        authorGroup.addView(author);
-
-        if (adminPost) {
-            TextView adminBadge = new TextView(this);
-            adminBadge.setText("Admin");
-            adminBadge.setTextSize(11);
-            adminBadge.setTextColor(Color.WHITE);
-            adminBadge.setBackground(adminBadgeBackground());
-            adminBadge.setPadding(dp(8), dp(2), dp(8), dp(2));
-            applyTimes(adminBadge, Typeface.NORMAL);
-            LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            badgeParams.setMargins(dp(6), 0, 0, 0);
-            authorGroup.addView(adminBadge, badgeParams);
-        }
-
-        metaRow.addView(authorGroup, new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f));
+        metaRow.addView(author, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView time = new TextView(this);
-        time.setText(timestamp == Long.MIN_VALUE ? "just now" : TimeFormatter.relative(timestamp));
+        time.setText(relativeTime(timestamp));
         time.setTextSize(11);
         time.setTextColor(Color.rgb(93, 102, 117));
         applyTimes(time, Typeface.NORMAL);
@@ -946,38 +1002,18 @@ public class MainActivity extends Activity {
         preview.setText(previewMessage == null ? "" : previewMessage.message());
         preview.setTextSize(15);
         preview.setTextColor(Color.rgb(51, 62, 80));
-        preview.setLineSpacing(0f, 1.25f);
         preview.setMaxLines(2);
         preview.setEllipsize(TextUtils.TruncateAt.END);
         preview.setPadding(0, 0, 0, dp(12));
         applyTimes(preview, Typeface.NORMAL);
         card.addView(preview);
 
-        LinearLayout repliesRow = new LinearLayout(this);
-        repliesRow.setOrientation(LinearLayout.HORIZONTAL);
-        repliesRow.setGravity(Gravity.CENTER_VERTICAL);
-
-        ImageView bubble = new ImageView(this);
-        Drawable bubbleDrawable = getDrawable(android.R.drawable.sym_action_chat);
-        if (bubbleDrawable != null) {
-            bubbleDrawable = bubbleDrawable.mutate();
-            bubbleDrawable.setTint(Color.parseColor("#C7D8F2"));
-            bubble.setImageDrawable(bubbleDrawable);
-        }
-        LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(dp(14), dp(14));
-        repliesRow.addView(bubble, bubbleParams);
-
         TextView replies = new TextView(this);
         replies.setText(replyCount + " comments");
         replies.setTextSize(13);
         replies.setTextColor(Color.rgb(93, 102, 117));
         applyTimes(replies, Typeface.NORMAL);
-        LinearLayout.LayoutParams repliesParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        repliesParams.setMargins(dp(4), 0, 0, 0);
-        repliesRow.addView(replies, repliesParams);
-        card.addView(repliesRow);
+        card.addView(replies);
         return card;
     }
 
@@ -1017,6 +1053,7 @@ public class MainActivity extends Activity {
     }
 
     private void showAdminPanel() {
+        currentPage = Page.ADMIN;
         LinearLayout content = page("Admin");
         Button back = secondaryButton("Back");
         back.setOnClickListener(v -> showPostList());
@@ -1030,6 +1067,47 @@ public class MainActivity extends Activity {
             content.addView(messageView(message, this::showAdminPanel));
         }
         setPage(content);
+    }
+
+    private View messageView(Message message, Runnable onRefresh) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(12), dp(16), dp(12));
+        card.setLayoutParams(blockParams());
+        card.setBackgroundColor(Color.WHITE);
+
+        User author = UserDAO.getInstance().getByUUID(message.poster());
+        String byline = author == null ? "Unknown user" : author.username();
+        card.addView(smallText(byline + (message.isHidden() ? " · hidden" : "")));
+        card.addView(bodyText(message.message()));
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.END);
+
+        if (currentUser.role() == User.Role.Admin) {
+            Button toggle = compactButton(message.isHidden() ? "Unhide" : "Hide");
+            toggle.setOnClickListener(v -> {
+                if (ModerationTools.setHidden(message.id(), currentUser.id(), !message.isHidden())) {
+                    saveInBackground(onRefresh);
+                }
+            });
+            actions.addView(toggle);
+        } else {
+            Button report = compactButton(ModerationTools.hasReported(message.id(), currentUser.id()) ? "Retract" : "Report");
+            report.setOnClickListener(v -> {
+                boolean changed;
+                if (ModerationTools.hasReported(message.id(), currentUser.id())) {
+                    changed = ModerationTools.removeReport(message.id(), currentUser.id(), System.currentTimeMillis());
+                } else {
+                    changed = ModerationTools.addReport(message.id(), currentUser.id(), System.currentTimeMillis());
+                }
+                if (changed) saveInBackground(onRefresh);
+            });
+            actions.addView(report);
+        }
+        card.addView(actions);
+        return card;
     }
 
     private void seedDemoDataIfEmpty() {
@@ -1046,12 +1124,13 @@ public class MainActivity extends Activity {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(dp(20), dp(28), dp(20), dp(20));
-        layout.setBackgroundColor(Color.rgb(247, 248, 250));
+        layout.setBackgroundColor(Color.parseColor("#F9FCFF"));
         TextView heading = new TextView(this);
         heading.setText(title);
         heading.setTextSize(28);
-        heading.setTextColor(Color.rgb(21, 23, 26));
+        heading.setTextColor(Color.parseColor("#081F5C"));
         heading.setPadding(0, 0, 0, dp(16));
+        applyTimes(heading, Typeface.BOLD);
         layout.addView(heading);
         return layout;
     }
@@ -1059,23 +1138,44 @@ public class MainActivity extends Activity {
     private EditText input(String hint, boolean password) {
         EditText editText = new EditText(this);
         editText.setHint(hint);
+        editText.setHintTextColor(Color.rgb(152, 170, 205));
         editText.setSingleLine(true);
+        editText.setTextSize(16);
+        editText.setTextColor(Color.rgb(21, 23, 26));
         editText.setInputType(password ? InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD : InputType.TYPE_CLASS_TEXT);
+        editText.setBackground(inputFieldBackground());
+        editText.setPadding(dp(20), dp(16), dp(20), dp(16));
         editText.setLayoutParams(blockParams());
         enableClipboard(editText);
+        applyTimes(editText, Typeface.NORMAL);
         return editText;
     }
 
     private Button primaryButton(String text) {
-        Button button = compactButton(text);
+        Button button = new Button(this);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setTextSize(16);
         button.setTextColor(Color.WHITE);
-        button.setBackgroundColor(Color.rgb(36, 87, 214));
+        button.setBackground(primaryButtonBackground());
+        button.setLayoutParams(blockParams());
+        button.setPadding(dp(20), dp(14), dp(20), dp(14));
+        button.setMinHeight(dp(44));
+        applyTimes(button, Typeface.BOLD);
         return button;
     }
 
     private Button secondaryButton(String text) {
-        Button button = compactButton(text);
-        button.setTextColor(Color.rgb(21, 23, 26));
+        Button button = new Button(this);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setTextSize(15);
+        button.setTextColor(Color.parseColor("#334EAC"));
+        button.setBackground(secondaryButtonBackground());
+        button.setLayoutParams(blockParams());
+        button.setPadding(dp(20), dp(12), dp(20), dp(12));
+        button.setMinHeight(dp(44));
+        applyTimes(button, Typeface.NORMAL);
         return button;
     }
 
@@ -1292,6 +1392,21 @@ public class MainActivity extends Activity {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(Color.parseColor("#334EAC"));
         drawable.setShape(GradientDrawable.OVAL);
+        return drawable;
+    }
+
+    private GradientDrawable primaryButtonBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.parseColor("#334EAC"));
+        drawable.setCornerRadius(dp(22));
+        return drawable;
+    }
+
+    private GradientDrawable secondaryButtonBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.WHITE);
+        drawable.setCornerRadius(dp(22));
+        drawable.setStroke(dp(2), Color.parseColor("#334EAC"));
         return drawable;
     }
 
