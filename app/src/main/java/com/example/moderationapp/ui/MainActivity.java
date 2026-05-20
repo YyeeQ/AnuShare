@@ -17,6 +17,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -28,6 +29,7 @@ import com.example.moderationapp.data.dao.UserDAO;
 import com.example.moderationapp.data.model.Message;
 import com.example.moderationapp.data.model.MessageReports;
 import com.example.moderationapp.data.model.Post;
+import com.example.moderationapp.data.model.Report;
 import com.example.moderationapp.data.model.User;
 import com.example.moderationapp.data.persistence.DataManager;
 import com.example.moderationapp.data.persistence.io.AndroidIOFactory;
@@ -198,6 +200,10 @@ public class MainActivity extends Activity {
         Button cancel = textActionButton("Cancel");
         applyTimes(cancel, Typeface.NORMAL);
         cancel.setTextColor(Color.WHITE);
+        cancel.setMinWidth(dp(104));
+        cancel.setMinimumWidth(dp(104));
+        cancel.setMinHeight(dp(48));
+        cancel.setMinimumHeight(dp(48));
         cancel.setOnClickListener(v -> showPostList());
         topBar.addView(cancel);
 
@@ -221,6 +227,10 @@ public class MainActivity extends Activity {
         post.setMinHeight(0);
         post.setMinimumHeight(0);
         post.setPadding(dp(18), dp(10), dp(18), dp(10));
+        post.setMinWidth(dp(104));
+        post.setMinimumWidth(dp(104));
+        post.setMinHeight(dp(48));
+        post.setMinimumHeight(dp(48));
         post.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -352,17 +362,52 @@ public class MainActivity extends Activity {
     }
 
     private void showPostDetail(Post post) {
-        LinearLayout content = page(post.topic);
-        Button back = secondaryButton("Back");
-        back.setOnClickListener(v -> showPostList());
-        content.addView(back);
+        FrameLayout screen = new FrameLayout(this);
+        screen.setBackgroundColor(Color.parseColor("#F9FCFF"));
 
-        boolean isAdmin = currentUser.role() == User.Role.Admin;
-        for (Iterator<Message> it = post.getVisibleMessages(isAdmin).getAll(); it.hasNext(); ) {
-            Message message = it.next();
-            content.addView(messageView(message, () -> showPostDetail(post)));
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT);
+        scrollView.setLayoutParams(scrollParams);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(Color.parseColor("#F9FCFF"));
+        content.setPadding(0, 0, 0, dp(120));
+
+        content.addView(postDetailHeader());
+
+        Message openingMessage = openingMessage(post);
+        if (openingMessage != null) {
+            content.addView(postDetailLead(post, openingMessage));
         }
-        setPage(content);
+
+        content.addView(thickDivider());
+
+        List<Message> replies = replyMessages(post);
+        TextView count = new TextView(this);
+        count.setText(replies.size() + " comments");
+        count.setTextSize(16);
+        count.setTextColor(Color.rgb(66, 90, 136));
+        count.setPadding(dp(20), dp(18), dp(20), dp(8));
+        applyTimes(count, Typeface.BOLD);
+        content.addView(count);
+
+        for (int i = 0; i < replies.size(); i++) {
+            content.addView(replyCard(post, replies.get(i)));
+            if (i < replies.size() - 1) {
+                content.addView(dividerLine());
+            }
+        }
+
+        scrollView.addView(content);
+        screen.addView(scrollView);
+        screen.addView(replyComposerDock(post));
+
+        root.removeAllViews();
+        root.addView(screen);
     }
 
     private View messageView(Message message, Runnable onRefresh) {
@@ -406,6 +451,384 @@ public class MainActivity extends Activity {
         return card;
     }
 
+    private View postDetailHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(20), dp(20), dp(20), dp(20));
+        header.setBackgroundColor(Color.parseColor("#7096D1"));
+
+        LinearLayout backGroup = new LinearLayout(this);
+        backGroup.setOrientation(LinearLayout.HORIZONTAL);
+        backGroup.setGravity(Gravity.CENTER_VERTICAL);
+        backGroup.setMinimumWidth(dp(104));
+        backGroup.setMinimumHeight(dp(48));
+        backGroup.setPadding(dp(6), 0, dp(6), 0);
+        backGroup.setOnClickListener(v -> showPostList());
+
+        TextView arrow = new TextView(this);
+        arrow.setText("<");
+        arrow.setTextSize(22);
+        arrow.setTextColor(Color.rgb(9, 42, 122));
+        arrow.setPadding(0, 0, dp(10), 0);
+        applyTimes(arrow, Typeface.BOLD);
+        backGroup.addView(arrow);
+
+        TextView back = new TextView(this);
+        back.setText("Back");
+        back.setTextSize(18);
+        back.setTextColor(Color.rgb(9, 42, 122));
+        applyTimes(back, Typeface.BOLD);
+        backGroup.addView(back);
+
+        header.addView(backGroup);
+        return header;
+    }
+
+    private View postDetailLead(Post post, Message openingMessage) {
+        User authorUser = UserDAO.getInstance().getByUUID(post.poster);
+        boolean adminPost = authorUser != null && authorUser.role() == User.Role.Admin;
+
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setPadding(dp(20), dp(18), dp(20), dp(20));
+        section.setBackgroundColor(Color.WHITE);
+
+        section.addView(authorMetaRow(authorUser, displayAuthor(post), openingMessage.timestamp(), adminPost));
+
+        TextView title = new TextView(this);
+        title.setText(post.topic);
+        title.setTextSize(24);
+        title.setTextColor(Color.rgb(9, 42, 122));
+        title.setPadding(0, dp(12), 0, dp(12));
+        applyTimes(title, Typeface.BOLD);
+        section.addView(title);
+
+        TextView body = new TextView(this);
+        body.setText(openingMessage.message());
+        body.setTextSize(17);
+        body.setLineSpacing(0f, 1.3f);
+        body.setTextColor(Color.rgb(33, 54, 102));
+        applyTimes(body, Typeface.NORMAL);
+        section.addView(body);
+
+        LinearLayout footer = new LinearLayout(this);
+        footer.setOrientation(LinearLayout.HORIZONTAL);
+        footer.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams footerParams = blockParams();
+        footerParams.setMargins(0, dp(18), 0, 0);
+        footer.setLayoutParams(footerParams);
+
+        footer.addView(replyCountChip(replyMessages(post).size(), "replies"));
+
+        View spacer = new View(this);
+        footer.addView(spacer, new LinearLayout.LayoutParams(0, 0, 1f));
+
+        View action = detailModerationButton(openingMessage, () -> showPostDetail(post));
+        if (action != null) footer.addView(action);
+        section.addView(footer);
+        return section;
+    }
+
+    private View replyCard(Post post, Message reply) {
+        User authorUser = UserDAO.getInstance().getByUUID(reply.poster());
+        boolean adminReply = authorUser != null && authorUser.role() == User.Role.Admin;
+        boolean hiddenForViewer = reply.isHidden() && currentUser.role() != User.Role.Admin;
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setLayoutParams(edgeToEdgeParams());
+        card.setPadding(dp(20), dp(16), dp(20), dp(16));
+        card.setBackground(cardBackground(adminReply));
+
+        card.addView(authorMetaRow(authorUser, displayAuthor(authorUser), reply.timestamp(), adminReply));
+
+        if (hiddenForViewer) {
+            LinearLayout hiddenRow = new LinearLayout(this);
+            hiddenRow.setOrientation(LinearLayout.HORIZONTAL);
+            hiddenRow.setGravity(Gravity.CENTER_VERTICAL);
+            hiddenRow.setPadding(0, dp(6), 0, dp(4));
+
+            TextView hiddenBadge = new TextView(this);
+            hiddenBadge.setText("Hidden");
+            hiddenBadge.setTextSize(11);
+            hiddenBadge.setTextColor(Color.rgb(195, 115, 115));
+            hiddenBadge.setBackground(hiddenBadgeBackground());
+            hiddenBadge.setPadding(dp(8), dp(2), dp(8), dp(2));
+            applyTimes(hiddenBadge, Typeface.NORMAL);
+            hiddenRow.addView(hiddenBadge);
+            card.addView(hiddenRow);
+
+            TextView placeholder = new TextView(this);
+            placeholder.setText("This comment has been hidden by a moderator.");
+            placeholder.setTextSize(15);
+            placeholder.setTextColor(Color.rgb(153, 163, 186));
+            placeholder.setPadding(0, dp(4), 0, 0);
+            placeholder.setTypeface(Typeface.create("times new roman", Typeface.ITALIC));
+            card.addView(placeholder);
+            return card;
+        }
+
+        TextView body = new TextView(this);
+        body.setText(reply.message());
+        body.setTextSize(16);
+        body.setLineSpacing(0f, 1.25f);
+        body.setTextColor(Color.rgb(33, 54, 102));
+        body.setPadding(0, dp(8), 0, 0);
+        applyTimes(body, Typeface.NORMAL);
+        card.addView(body);
+
+        LinearLayout footer = new LinearLayout(this);
+        footer.setOrientation(LinearLayout.HORIZONTAL);
+        footer.setGravity(Gravity.END);
+        LinearLayout.LayoutParams footerParams = blockParams();
+        footerParams.setMargins(0, dp(12), 0, 0);
+        footer.setLayoutParams(footerParams);
+
+        View action = detailModerationButton(reply, () -> showPostDetail(post));
+        if (action != null) footer.addView(action);
+        card.addView(footer);
+        return card;
+    }
+
+    private View authorMetaRow(User authorUser, String displayName, long timestamp, boolean adminAuthor) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setLayoutParams(edgeToEdgeParams());
+
+        TextView avatar = avatarView(authorUser, displayName, 36);
+        LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        row.addView(avatar, avatarParams);
+
+        LinearLayout textGroup = new LinearLayout(this);
+        textGroup.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams textGroupParams = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f);
+        textGroupParams.setMargins(dp(12), 0, 0, 0);
+        textGroup.setLayoutParams(textGroupParams);
+
+        LinearLayout topLine = new LinearLayout(this);
+        topLine.setOrientation(LinearLayout.HORIZONTAL);
+        topLine.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView name = new TextView(this);
+        name.setText(displayName);
+        name.setTextSize(14);
+        name.setTextColor(Color.rgb(18, 35, 76));
+        applyTimes(name, Typeface.BOLD);
+        topLine.addView(name);
+
+        if (adminAuthor) {
+            TextView adminBadge = new TextView(this);
+            adminBadge.setText("Admin");
+            adminBadge.setTextSize(11);
+            adminBadge.setTextColor(Color.WHITE);
+            adminBadge.setBackground(adminBadgeBackground());
+            adminBadge.setPadding(dp(8), dp(2), dp(8), dp(2));
+            applyTimes(adminBadge, Typeface.NORMAL);
+            LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            badgeParams.setMargins(dp(6), 0, 0, 0);
+            topLine.addView(adminBadge, badgeParams);
+        }
+
+        textGroup.addView(topLine);
+        row.addView(textGroup);
+
+        TextView time = new TextView(this);
+        time.setText(TimeFormatter.relative(timestamp));
+        time.setTextSize(11);
+        time.setTextColor(Color.rgb(93, 102, 117));
+        applyTimes(time, Typeface.NORMAL);
+        row.addView(time);
+        return row;
+    }
+
+    private View replyCountChip(int count, String suffix) {
+        LinearLayout chip = new LinearLayout(this);
+        chip.setOrientation(LinearLayout.HORIZONTAL);
+        chip.setGravity(Gravity.CENTER_VERTICAL);
+        chip.setBackground(replyChipBackground());
+        chip.setPadding(dp(14), dp(10), dp(14), dp(10));
+
+        ImageView bubble = new ImageView(this);
+        Drawable bubbleDrawable = getDrawable(android.R.drawable.sym_action_chat);
+        if (bubbleDrawable != null) {
+            bubbleDrawable = bubbleDrawable.mutate();
+            bubbleDrawable.setTint(Color.parseColor("#D8C9FB"));
+            bubble.setImageDrawable(bubbleDrawable);
+        }
+        chip.addView(bubble, new LinearLayout.LayoutParams(dp(14), dp(14)));
+
+        TextView label = new TextView(this);
+        label.setText(" " + count + " " + suffix);
+        label.setTextSize(14);
+        label.setTextColor(Color.rgb(59, 86, 162));
+        applyTimes(label, Typeface.BOLD);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        labelParams.setMargins(dp(4), 0, 0, 0);
+        chip.addView(label, labelParams);
+        return chip;
+    }
+
+    private View detailModerationButton(Message message, Runnable onRefresh) {
+        if (currentUser.role() == User.Role.Admin) {
+            Button toggle = detailActionButton(message.isHidden() ? "Unhide" : "Hide", Color.parseColor("#081F5C"));
+            toggle.setOnClickListener(v -> {
+                if (ModerationTools.setHidden(message.id(), currentUser.id(), !message.isHidden())) {
+                    saveInBackground(onRefresh);
+                }
+            });
+            return toggle;
+        }
+
+        boolean reported = ModerationTools.hasReported(message.id(), currentUser.id());
+        Button button = detailActionButton(
+                reported ? "Retract" : "Report",
+                reported ? Color.parseColor("#081F5C") : Color.parseColor("#334EAC"));
+        button.setOnClickListener(v -> {
+            if (reported) {
+                if (ModerationTools.removeReport(message.id(), currentUser.id(), System.currentTimeMillis())) {
+                    saveInBackground(onRefresh);
+                }
+            } else {
+                showReportMenu(button, message, onRefresh);
+            }
+        });
+        return button;
+    }
+
+    private void showReportMenu(View anchor, Message message, Runnable onRefresh) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        Report.Type[] types = new Report.Type[] {
+                Report.Type.SPAM,
+                Report.Type.HARASSMENT,
+                Report.Type.HATE_SPEECH,
+                Report.Type.VIOLENCE,
+                Report.Type.OTHER
+        };
+        for (int i = 0; i < types.length; i++) {
+            menu.getMenu().add(0, i, i, types[i].label());
+        }
+        menu.setOnMenuItemClickListener(item -> {
+            Report.Type type = types[item.getItemId()];
+            boolean changed = ModerationTools.addReport(
+                    message.id(),
+                    currentUser.id(),
+                    System.currentTimeMillis(),
+                    type);
+            if (changed) saveInBackground(onRefresh);
+            return changed;
+        });
+        menu.show();
+    }
+
+    private Button detailActionButton(String text, int backgroundColor) {
+        Button button = new Button(this);
+        button.setAllCaps(false);
+        button.setText(text);
+        button.setTextSize(14);
+        button.setTextColor(Color.WHITE);
+        button.setBackground(detailActionBackground(backgroundColor));
+        button.setPadding(dp(18), dp(8), dp(18), dp(8));
+        button.setMinHeight(dp(40));
+        button.setMinimumHeight(dp(40));
+        applyTimes(button, Typeface.BOLD);
+        return button;
+    }
+
+    private View thickDivider() {
+        View divider = new View(this);
+        divider.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(8)));
+        divider.setBackgroundColor(Color.parseColor("#E8EEF8"));
+        return divider;
+    }
+
+    private View replyComposerDock(Post post) {
+        LinearLayout dock = new LinearLayout(this);
+        dock.setOrientation(LinearLayout.HORIZONTAL);
+        dock.setGravity(Gravity.CENTER_VERTICAL);
+        dock.setPadding(dp(20), dp(12), dp(20), dp(18));
+        dock.setBackgroundColor(Color.WHITE);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT);
+        params.gravity = Gravity.BOTTOM;
+        dock.setLayoutParams(params);
+
+        View divider = new View(this);
+        divider.setBackgroundColor(Color.parseColor("#E8EEF8"));
+        FrameLayout container = new FrameLayout(this);
+        FrameLayout.LayoutParams dividerParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(1));
+        dividerParams.gravity = Gravity.TOP;
+        divider.setLayoutParams(dividerParams);
+        container.addView(divider);
+
+        EditText input = new EditText(this);
+        input.setHint("Join the conversation");
+        input.setHintTextColor(Color.rgb(152, 170, 205));
+        input.setTextSize(16);
+        input.setTextColor(Color.rgb(21, 23, 26));
+        input.setBackground(replyInputBackground());
+        input.setPadding(dp(20), dp(16), dp(20), dp(16));
+        input.setSingleLine(false);
+        input.setMinLines(1);
+        input.setMaxLines(4);
+        input.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        enableClipboard(input);
+        applyTimes(input, Typeface.NORMAL);
+        dock.addView(input);
+
+        Button send = new Button(this);
+        LinearLayout.LayoutParams sendParams = new LinearLayout.LayoutParams(dp(56), dp(56));
+        sendParams.setMargins(dp(14), 0, 0, 0);
+        send.setLayoutParams(sendParams);
+        send.setText(">");
+        send.setTextSize(22);
+        send.setTextColor(Color.WHITE);
+        send.setBackground(sendButtonBackground());
+        applyTimes(send, Typeface.BOLD);
+        send.setOnClickListener(v -> {
+            String text = input.getText().toString().trim();
+            if (text.isEmpty()) {
+                toast("Please enter a reply");
+                return;
+            }
+
+            Message reply = new Message(
+                    UUID.randomUUID(),
+                    currentUser.id(),
+                    post.id,
+                    System.currentTimeMillis(),
+                    text);
+
+            if (!post.messages.insert(reply)) {
+                toast("Unable to post reply");
+                return;
+            }
+
+            saveInBackground(() -> {
+                toast("Reply posted");
+                showPostDetail(post);
+            });
+        });
+        dock.addView(send);
+
+        container.addView(dock);
+        return container;
+    }
+
     private View postListHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -433,7 +856,7 @@ public class MainActivity extends Activity {
         identity.addView(headerAvatar, headerAvatarParams);
 
         TextView username = new TextView(this);
-        username.setText("Hello, " + currentUser.username());
+        username.setText(currentUser.username());
         username.setTextSize(15);
         username.setTextColor(Color.rgb(21, 23, 26));
         applyTimes(username, Typeface.BOLD);
@@ -663,9 +1086,11 @@ public class MainActivity extends Activity {
         button.setTextSize(15);
         button.setTextColor(Color.WHITE);
         button.setBackground(signOutBackground());
-        button.setMinHeight(0);
-        button.setMinimumHeight(0);
-        button.setPadding(dp(16), dp(8), dp(16), dp(8));
+        button.setMinWidth(dp(104));
+        button.setMinimumWidth(dp(104));
+        button.setMinHeight(dp(48));
+        button.setMinimumHeight(dp(48));
+        button.setPadding(dp(18), dp(10), dp(18), dp(10));
         return button;
     }
 
@@ -710,6 +1135,12 @@ public class MainActivity extends Activity {
         return params;
     }
 
+    private LinearLayout.LayoutParams edgeToEdgeParams() {
+        return new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+    }
+
     private long postTimestamp(Post post, boolean isAdmin) {
         Message message = previewMessage(post, isAdmin);
         return message == null ? Long.MIN_VALUE : message.timestamp();
@@ -732,6 +1163,25 @@ public class MainActivity extends Activity {
     private String displayAuthor(Post post) {
         User author = UserDAO.getInstance().getByUUID(post.poster);
         return author == null ? "Unknown user" : author.username();
+    }
+
+    private String displayAuthor(User author) {
+        return author == null ? "Unknown user" : author.username();
+    }
+
+    private Message openingMessage(Post post) {
+        Iterator<Message> it = post.messages.getAll();
+        return it.hasNext() ? it.next() : null;
+    }
+
+    private List<Message> replyMessages(Post post) {
+        ArrayList<Message> replies = new ArrayList<>();
+        Iterator<Message> it = post.messages.getAll();
+        if (it.hasNext()) it.next();
+        while (it.hasNext()) {
+            replies.add(it.next());
+        }
+        return replies;
     }
 
     private GradientDrawable cardBackground(boolean adminPost) {
@@ -798,7 +1248,7 @@ public class MainActivity extends Activity {
     private GradientDrawable signOutBackground() {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(Color.parseColor("#334EAC"));
-        drawable.setCornerRadius(dp(18));
+        drawable.setCornerRadius(dp(22));
         return drawable;
     }
 
@@ -806,6 +1256,42 @@ public class MainActivity extends Activity {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(Color.parseColor("#081F5C"));
         drawable.setCornerRadius(dp(10));
+        return drawable;
+    }
+
+    private GradientDrawable hiddenBadgeBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.parseColor("#F7DDDD"));
+        drawable.setCornerRadius(dp(10));
+        return drawable;
+    }
+
+    private GradientDrawable detailActionBackground(int backgroundColor) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(backgroundColor);
+        drawable.setCornerRadius(dp(20));
+        return drawable;
+    }
+
+    private GradientDrawable replyChipBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.parseColor("#E7F1FF"));
+        drawable.setCornerRadius(dp(18));
+        return drawable;
+    }
+
+    private GradientDrawable replyInputBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.parseColor("#EEF4FF"));
+        drawable.setCornerRadius(dp(24));
+        drawable.setStroke(dp(1), Color.parseColor("#D8E6FF"));
+        return drawable;
+    }
+
+    private GradientDrawable sendButtonBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.parseColor("#334EAC"));
+        drawable.setShape(GradientDrawable.OVAL);
         return drawable;
     }
 
@@ -828,6 +1314,8 @@ public class MainActivity extends Activity {
         drawable.setShape(GradientDrawable.OVAL);
         if (user != null && user.role() == User.Role.Admin) {
             drawable.setStroke(dp(3), Color.parseColor("#081F5C"));
+        } else {
+            drawable.setStroke(dp(2), Color.parseColor("#C7D8F2"));
         }
         return drawable;
     }

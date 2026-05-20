@@ -5,6 +5,7 @@ import com.example.moderationapp.data.dao.ReportDAO;
 import com.example.moderationapp.data.dao.UserDAO;
 import com.example.moderationapp.data.model.Message;
 import com.example.moderationapp.data.model.MessageReports;
+import com.example.moderationapp.data.model.Report;
 import com.example.moderationapp.data.model.User;
 import com.example.moderationapp.logic.moderation.strategy.ReportStrategy;
 import com.example.moderationapp.logic.moderation.strategy.ReportStrategyFactory;
@@ -16,10 +17,14 @@ import java.util.UUID;
 public class ModerationTools {
 
     public static boolean addReport(UUID message, UUID user, long timestamp) {
+        return addReport(message, user, timestamp, Report.Type.OTHER);
+    }
+
+    public static boolean addReport(UUID message, UUID user, long timestamp, Report.Type type) {
         if (message == null || user == null) return false;
         if (!messageExists(message)) return false;
         if (UserDAO.getInstance().getByUUID(user) == null) return false;
-        return ReportDAO.getInstance().addReport(message, user, timestamp);
+        return ReportDAO.getInstance().addReport(message, user, timestamp, type);
     }
 
     public static boolean removeReport(UUID message, UUID user, long timestamp) {

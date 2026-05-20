@@ -25,9 +25,13 @@ public class ReportDAO {
     }
 
     public boolean addReport(UUID messageId, UUID userId, long timestamp) {
+        return addReport(messageId, userId, timestamp, Report.Type.OTHER);
+    }
+
+    public boolean addReport(UUID messageId, UUID userId, long timestamp, Report.Type type) {
         MessageReports bucket = buckets.computeIfAbsent(messageId, MessageReports::new);
         if (bucket.hasReportFrom(userId)) return false;
-        bucket.add(new Report(messageId, userId, timestamp));
+        bucket.add(new Report(messageId, userId, timestamp, type));
         return true;
     }
 
