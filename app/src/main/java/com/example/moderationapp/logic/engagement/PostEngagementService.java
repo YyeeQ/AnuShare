@@ -91,8 +91,7 @@ public class PostEngagementService {
         return hotScoreStrategy.score(
                 post,
                 ensureMetadata(post.id),
-                replyCount(post, isAdmin),
-                newestActivityTimestamp(post, isAdmin));
+                replyCount(post, isAdmin));
     }
 
     private int replyCount(Post post, boolean isAdmin) {
@@ -102,11 +101,6 @@ public class PostEngagementService {
             count++;
         }
         return Math.max(0, count - 1);
-    }
-
-    private long newestActivityTimestamp(Post post, boolean isAdmin) {
-        Iterator<Message> it = post.getVisibleMessages(isAdmin).getAll();
-        return it.hasNext() ? it.next().timestamp() : System.currentTimeMillis();
     }
 
     private PostEngagement.Tag defaultTagFor(UUID postId) {
