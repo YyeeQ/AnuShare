@@ -1952,7 +1952,7 @@ public class MainActivity extends Activity {
         topRow.addView(spacer, new LinearLayout.LayoutParams(0, 0, 1f));
 
         TextView fire = new TextView(this);
-        fire.setText("\uD83D\uDD25 " + String.format(Locale.getDefault(), "%.1f", score));
+        fire.setText("\uD83D\uDD25 " + String.format(Locale.getDefault(), "%.1f", Math.max(0.0, score)));
         fire.setTextSize(18);
         fire.setTextColor(TRENDING_ACCENT);
         applyTimes(fire, Typeface.BOLD);
@@ -2058,7 +2058,7 @@ public class MainActivity extends Activity {
         row.addView(textCol, textColParams);
 
         TextView fire = new TextView(this);
-        fire.setText("\uD83D\uDD25 " + String.format(Locale.getDefault(), "%.1f", score));
+        fire.setText("\uD83D\uDD25 " + String.format(Locale.getDefault(), "%.1f", Math.max(0.0, score)));
         fire.setTextSize(13);
         fire.setTextColor(Color.rgb(140, 152, 178));
         applyTimes(fire, Typeface.BOLD);
@@ -2395,53 +2395,133 @@ public class MainActivity extends Activity {
             return;
         }
 
-        Post safetyPost = createSeedPost(member, "Unsafe comment about ANU campus event", "Someone posted threatening language about a student group after the ANU society event near Kambri. This needs moderator review.", PostEngagement.Tag.CAMPUS);
-        Message violenceMessage = addSeedReply(safetyPost, student2, "This comment includes a threat about meeting someone outside Chifley Library after class.");
-
-        Post coursePost = createSeedPost(student2, "COMP2100 tutorial discussion", "Can someone explain how the moderation system is supposed to work for the assignment?", PostEngagement.Tag.ACADEMIC);
-        Message harassmentMessage = addSeedReply(coursePost, student3, "A reply in this thread keeps targeting one student by name and insulting their work in the tutorial group.");
-
-        Post spamPost = createSeedPost(student3, "ANU textbook exchange", "Does anyone know where to find second-hand textbooks around campus?", PostEngagement.Tag.LOUNGE);
-        Message spamMessage = addSeedReply(spamPost, student4, "Repeated advertisement: cheap assignment help and guaranteed HD results. Message me now.");
-
-        Post policyPost = createSeedPost(student4, "Question about late submission policy", "I am confused about the course late submission rules and special consideration process.", PostEngagement.Tag.ACADEMIC);
-        Message otherMessage = addSeedReply(policyPost, member, "This reply gives misleading academic policy information and may confuse first-year students.");
-
-        Post hatePost = createSeedPost(student5, "Discussion about group project teams", "How should we handle conflict in COMP group assignments?", PostEngagement.Tag.ACADEMIC);
-        Message hateMessage = addSeedReply(hatePost, member, "A comment here attacks a group of students with hateful language and should be checked by an admin.");
-
-        Post quietStudyPost = createSeedPost(student2, "Best quiet study spots at ANU", "I usually study around Marie Reay or the Law Library, but I am looking for somewhere quiet during exam week. Any recommendations?", PostEngagement.Tag.ACADEMIC);
-        addSeedReply(quietStudyPost, member, "The Law Library is usually quieter than Hancock in the afternoon.");
-
-        Post projectHelpPost = createSeedPost(student3, "COMP2100 project structure question", "Our group is deciding how to separate UI, persistence and moderation logic. Is it better to keep admin UI separate from user-facing screens?", PostEngagement.Tag.ACADEMIC);
-        addSeedReply(projectHelpPost, student5, "We kept the admin dashboard separate, but still linked it from the main post list for admins.");
-
-        Post foodPost = createSeedPost(member, "Food options near Kambri after 6pm", "Does anyone know which places around Kambri are still open after evening tutorials?", PostEngagement.Tag.LOUNGE);
-        addSeedReply(foodPost, student4, "Supermarket and a few takeaway places are usually open later than the cafes.");
-
+        // ===== 时间锚点：基于"现在"往前推，让 seed 内容有真实的时间分布 =====
         long now = System.currentTimeMillis();
-        ModerationTools.addReport(violenceMessage.id(), member.id(), now - 5 * 60 * 1000L, Report.Type.VIOLENCE);
-        ModerationTools.addReport(violenceMessage.id(), student3.id(), now - 4 * 60 * 1000L, Report.Type.VIOLENCE);
-        ModerationTools.addReport(violenceMessage.id(), student4.id(), now - 3 * 60 * 1000L, Report.Type.VIOLENCE);
-        ModerationTools.addReport(harassmentMessage.id(), member.id(), now - 30 * 60 * 1000L, Report.Type.HARASSMENT);
-        ModerationTools.addReport(harassmentMessage.id(), student2.id(), now - 29 * 60 * 1000L, Report.Type.HARASSMENT);
-        ModerationTools.addReport(harassmentMessage.id(), student4.id(), now - 28 * 60 * 1000L, Report.Type.HARASSMENT);
-        ModerationTools.addReport(harassmentMessage.id(), student5.id(), now - 27 * 60 * 1000L, Report.Type.HARASSMENT);
-        ModerationTools.addReport(harassmentMessage.id(), admin.id(), now - 26 * 60 * 1000L, Report.Type.HARASSMENT);
-        ModerationTools.addReport(spamMessage.id(), member.id(), now - 15 * 60 * 1000L, Report.Type.SPAM);
-        ModerationTools.addReport(spamMessage.id(), student2.id(), now - 14 * 60 * 1000L, Report.Type.SPAM);
-        ModerationTools.addReport(otherMessage.id(), student2.id(), now - 120 * 60 * 1000L, Report.Type.OTHER);
-        ModerationTools.addReport(hateMessage.id(), student3.id(), now - 45 * 60 * 1000L, Report.Type.HATE_SPEECH);
-        ModerationTools.addReport(hateMessage.id(), student4.id(), now - 44 * 60 * 1000L, Report.Type.HATE_SPEECH);
-        ModerationTools.addReport(hateMessage.id(), student5.id(), now - 43 * 60 * 1000L, Report.Type.HATE_SPEECH);
-        ModerationTools.addReport(hateMessage.id(), member.id(), now - 42 * 60 * 1000L, Report.Type.HATE_SPEECH);
+        long min = 60L * 1000L;
+        long hour = 60L * min;
+        long day = 24L * hour;
+
+        // ---- 已存在的种子帖子（按时间从早到晚分布）----
+
+        Post safetyPost = createSeedPost(member, "Unsafe comment about ANU campus event", "Someone posted threatening language about a student group after the ANU society event near Kambri. This needs moderator review.", PostEngagement.Tag.CAMPUS, now - 8 * hour);
+        Message violenceMessage = addSeedReply(safetyPost, student2, "This comment includes a threat about meeting someone outside Chifley Library after class.", now - 7 * hour);
+
+        Post coursePost = createSeedPost(student2, "COMP2100 tutorial discussion", "Can someone explain how the moderation system is supposed to work for the assignment?", PostEngagement.Tag.ACADEMIC, now - 2 * day);
+        Message harassmentMessage = addSeedReply(coursePost, student3, "A reply in this thread keeps targeting one student by name and insulting their work in the tutorial group.", now - 2 * day + 3 * hour);
+
+        Post spamPost = createSeedPost(student3, "ANU textbook exchange", "Does anyone know where to find second-hand textbooks around campus?", PostEngagement.Tag.LOUNGE, now - 3 * day);
+        Message spamMessage = addSeedReply(spamPost, student4, "Repeated advertisement: cheap assignment help and guaranteed HD results. Message me now.", now - 3 * day + 5 * hour);
+
+        Post policyPost = createSeedPost(student4, "Question about late submission policy", "I am confused about the course late submission rules and special consideration process.", PostEngagement.Tag.ACADEMIC, now - 4 * day);
+        Message otherMessage = addSeedReply(policyPost, member, "This reply gives misleading academic policy information and may confuse first-year students.", now - 4 * day + 6 * hour);
+
+        Post hatePost = createSeedPost(student5, "Discussion about group project teams", "How should we handle conflict in COMP group assignments?", PostEngagement.Tag.ACADEMIC, now - 36 * hour);
+        Message hateMessage = addSeedReply(hatePost, member, "A comment here attacks a group of students with hateful language and should be checked by an admin.", now - 30 * hour);
+
+        Post quietStudyPost = createSeedPost(student2, "Best quiet study spots at ANU", "I usually study around Marie Reay or the Law Library, but I am looking for somewhere quiet during exam week. Any recommendations?", PostEngagement.Tag.ACADEMIC, now - 5 * day);
+        addSeedReply(quietStudyPost, member, "The Law Library is usually quieter than Hancock in the afternoon.", now - 5 * day + 2 * hour);
+        addSeedReply(quietStudyPost, student4, "Marie Reay level 3 is amazing during the day but gets crowded after 4pm.", now - 4 * day);
+        addSeedReply(quietStudyPost, student5, "I usually go to Menzies. Quiet, big tables, and not too far from Kambri.", now - 3 * day - 5 * hour);
+
+        Post projectHelpPost = createSeedPost(student3, "COMP2100 project structure question", "Our group is deciding how to separate UI, persistence and moderation logic. Is it better to keep admin UI separate from user-facing screens?", PostEngagement.Tag.ACADEMIC, now - 6 * day);
+        addSeedReply(projectHelpPost, student5, "We kept the admin dashboard separate, but still linked it from the main post list for admins.", now - 6 * day + 4 * hour);
+        addSeedReply(projectHelpPost, member, "Same here. A dedicated admin screen makes the moderation tools much easier to find.", now - 5 * day - 3 * hour);
+
+        Post foodPost = createSeedPost(member, "Food options near Kambri after 6pm", "Does anyone know which places around Kambri are still open after evening tutorials?", PostEngagement.Tag.LOUNGE, now - 12 * hour);
+        addSeedReply(foodPost, student4, "Supermarket and a few takeaway places are usually open later than the cafes.", now - 10 * hour);
+        addSeedReply(foodPost, student3, "The Asian place near the bus interchange is open till around 9pm most weekdays.", now - 8 * hour);
+
+        // ===== 新增内容池：7 个种子帖子 =====
+
+        Post weatherPost = createSeedPost(student3, "How do you survive Canberra winter mornings?", "My 9am tutorial in Hancock is brutal when it is 2 degrees outside. Any tips for staying warm on the bus from Bruce or Acton?", PostEngagement.Tag.LOUNGE, now - 18 * hour);
+        addSeedReply(weatherPost, student5, "Layer up and grab a coffee from the Kambri cafes on the way in. The walk from the bus stop is the worst part.", now - 16 * hour);
+        addSeedReply(weatherPost, student4, "I switched to an earlier bus so I can sit inside Chifley for half an hour before class starts.", now - 14 * hour);
+        addSeedReply(weatherPost, member, "Thermos of tea is a game changer. Refill at the Kambri water station.", now - 10 * hour);
+
+        Post clubsPost = createSeedPost(student4, "ANU clubs worth joining in first semester", "I am a new student starting this semester. Which clubs or societies around Kambri are actually active and beginner friendly?", PostEngagement.Tag.LOUNGE, now - 26 * hour);
+        addSeedReply(clubsPost, student2, "CSSA runs regular events and the Programming Society has weekly meetups. Both are very welcoming to first years.", now - 24 * hour);
+        addSeedReply(clubsPost, member, "Check Market Day at the start of semester. Most clubs have stalls outside Kambri.", now - 20 * hour);
+        addSeedReply(clubsPost, student3, "Photography Society is small but very chill. Good for a non-academic break.", now - 12 * hour);
+
+        Post umlReviewPost = createSeedPost(student5, "UML class diagram revision before the COMP2100 exam", "I keep mixing up composition and aggregation. Does anyone have a clear rule of thumb that worked for them in tutorials?", PostEngagement.Tag.ACADEMIC, now - 22 * hour);
+        addSeedReply(umlReviewPost, student2, "Composition is a stronger ownership: if the container is destroyed, the parts go with it. Aggregation is a looser has-a relationship.", now - 20 * hour);
+        addSeedReply(umlReviewPost, student3, "The tutors at Marie Reay drop-in sessions explained it really well last week. Worth dropping by before the exam.", now - 18 * hour);
+        addSeedReply(umlReviewPost, member, "Filled diamond = composition, hollow diamond = aggregation. That visual cue helped me lock it in.", now - 6 * hour);
+
+        Post avlPost = createSeedPost(member, "AVL tree rotation not balancing correctly", "My left-right rotation case keeps producing a skewed subtree. I have stepped through it in IntelliJ but cannot see what is wrong. Any debugging tips?", PostEngagement.Tag.ACADEMIC, now - 40 * hour);
+        addSeedReply(avlPost, student3, "Double check that you update the height of both rotated nodes after the rotation, not just the new root.", now - 38 * hour);
+        addSeedReply(avlPost, student4, "Drawing the tree on paper at each step helped me catch a similar bug last assignment.", now - 30 * hour);
+
+        Post jobScamPost = createSeedPost(student2, "Part-time jobs near ANU campus", "I am looking for casual work within walking distance of campus. Any honest leads from current students?", PostEngagement.Tag.CAMPUS, now - 14 * hour);
+        addSeedReply(jobScamPost, student5, "The Co-op bookshop and several Kambri cafes hire student casuals. Check their windows directly.", now - 12 * hour);
+        Message jobScamMessage = addSeedReply(jobScamPost, student4, "Earn $500 a day from your phone! No experience needed. DM me for the link and start tonight.", now - 95 * min);
+
+        Post groupChatPost = createSeedPost(student3, "Looking for a study group for COMP2100", "Is anyone running an informal group chat for the moderation app project? Happy to share notes and meet at Chifley once a week.", PostEngagement.Tag.LOUNGE, now - 28 * hour);
+        addSeedReply(groupChatPost, student2, "Our tutorial group has one running already. Ask your tutor and they can add you in.", now - 26 * hour);
+        Message groupChatHarassMessage = addSeedReply(groupChatPost, student4, "Honestly do not bother including one specific person from our tute. They never contribute and everyone thinks they are useless.", now - 25 * hour);
+
+        Post groupConflictPost = createSeedPost(student5, "Handling communication issues in group projects", "Our COMP group has students from different backgrounds and we are struggling to coordinate. Looking for respectful advice on how to communicate better.", PostEngagement.Tag.ACADEMIC, now - 3 * day - 4 * hour);
+        addSeedReply(groupConflictPost, member, "Setting a shared meeting time each week and writing everything in a group doc made a huge difference for my team.", now - 3 * day - 2 * hour);
+        Message hiddenHateMessage = addSeedReply(groupConflictPost, student4, "Honestly some groups of students just should not be at ANU. They drag everyone down and ruin the marks for real Australians.", now - 3 * day);
+        hiddenHateMessage.setHidden(true);
+
+        // ===== 新增内容池结束 =====
+
+        // ===== 举报数据 =====
+        ModerationTools.addReport(violenceMessage.id(), member.id(), now - 5 * min, Report.Type.VIOLENCE);
+        ModerationTools.addReport(violenceMessage.id(), student3.id(), now - 4 * min, Report.Type.VIOLENCE);
+        ModerationTools.addReport(violenceMessage.id(), student4.id(), now - 3 * min, Report.Type.VIOLENCE);
+        ModerationTools.addReport(harassmentMessage.id(), member.id(), now - 30 * min, Report.Type.HARASSMENT);
+        ModerationTools.addReport(harassmentMessage.id(), student2.id(), now - 29 * min, Report.Type.HARASSMENT);
+        ModerationTools.addReport(harassmentMessage.id(), student4.id(), now - 28 * min, Report.Type.HARASSMENT);
+        ModerationTools.addReport(harassmentMessage.id(), student5.id(), now - 27 * min, Report.Type.HARASSMENT);
+        ModerationTools.addReport(harassmentMessage.id(), admin.id(), now - 26 * min, Report.Type.HARASSMENT);
+        ModerationTools.addReport(spamMessage.id(), member.id(), now - 15 * min, Report.Type.SPAM);
+        ModerationTools.addReport(spamMessage.id(), student2.id(), now - 14 * min, Report.Type.SPAM);
+        ModerationTools.addReport(otherMessage.id(), student2.id(), now - 120 * min, Report.Type.OTHER);
+        ModerationTools.addReport(hateMessage.id(), student3.id(), now - 45 * min, Report.Type.HATE_SPEECH);
+        ModerationTools.addReport(hateMessage.id(), student4.id(), now - 44 * min, Report.Type.HATE_SPEECH);
+        ModerationTools.addReport(hateMessage.id(), student5.id(), now - 43 * min, Report.Type.HATE_SPEECH);
+        ModerationTools.addReport(hateMessage.id(), member.id(), now - 42 * min, Report.Type.HATE_SPEECH);
+
+        ModerationTools.addReport(jobScamMessage.id(), member.id(), now - 90 * min, Report.Type.SPAM);
+        ModerationTools.addReport(jobScamMessage.id(), student3.id(), now - 88 * min, Report.Type.SPAM);
+        ModerationTools.addReport(jobScamMessage.id(), student5.id(), now - 86 * min, Report.Type.SPAM);
+
+        ModerationTools.addReport(groupChatHarassMessage.id(), student5.id(), now - 20 * min, Report.Type.HARASSMENT);
+        ModerationTools.addReport(groupChatHarassMessage.id(), member.id(), now - 18 * min, Report.Type.HARASSMENT);
+        ModerationTools.addReport(groupChatHarassMessage.id(), student3.id(), now - 17 * min, Report.Type.HARASSMENT);
+
+        ModerationTools.addReport(hiddenHateMessage.id(), student2.id(), now - 180 * min, Report.Type.HATE_SPEECH);
+        ModerationTools.addReport(hiddenHateMessage.id(), student3.id(), now - 178 * min, Report.Type.HATE_SPEECH);
+        ModerationTools.addReport(hiddenHateMessage.id(), member.id(), now - 176 * min, Report.Type.HATE_SPEECH);
+
+        // ===== 模拟点赞 / 点踩，让 Trending 页面排序有差异 =====
+        // 干净的、有用的帖子拿到最多 likes ——会进 Trending 前三
+        seedLikes(weatherPost.id, new User[] {member, student2, student4, student5});
+        seedLikes(clubsPost.id, new User[] {admin, member, student2, student3, student5});
+        seedLikes(umlReviewPost.id, new User[] {admin, member, student2, student3, student4});
+        seedLikes(quietStudyPost.id, new User[] {member, student3, student4, student5});
+        seedLikes(avlPost.id, new User[] {student2, student3, student5});
+        seedLikes(projectHelpPost.id, new User[] {student2, student4});
+        seedLikes(foodPost.id, new User[] {student2, student3, student5});
+
+        // 给违规帖子加点 dislikes，让它们在 trending 上沉下去
+        seedDislikes(spamPost.id, new User[] {member, student2, student5});
+        seedDislikes(hatePost.id, new User[] {member, student2, student3, student4});
+        seedDislikes(jobScamPost.id, new User[] {member, student3, student5});
+        seedDislikes(groupConflictPost.id, new User[] {member, student2, student3});
 
         dataManager.writeAll();
     }
 
     private Post createSeedPost(User author, String topic, String body, PostEngagement.Tag tag) {
+        return createSeedPost(author, topic, body, tag, System.currentTimeMillis());
+    }
+
+    private Post createSeedPost(User author, String topic, String body, PostEngagement.Tag tag, long timestamp) {
         Post post = new Post(UUID.randomUUID(), author.id(), topic);
-        Message opening = new Message(UUID.randomUUID(), author.id(), post.id, System.currentTimeMillis(), body);
+        Message opening = new Message(UUID.randomUUID(), author.id(), post.id, timestamp, body);
         PostDAO.getInstance().add(post);
         post.messages.insert(opening);
         PostEngagement engagement = engagementService.ensureMetadata(post.id);
@@ -2451,11 +2531,26 @@ public class MainActivity extends Activity {
     }
 
     private Message addSeedReply(Post post, User author, String body) {
-        Message reply = new Message(UUID.randomUUID(), author.id(), post.id, System.currentTimeMillis(), body);
+        return addSeedReply(post, author, body, System.currentTimeMillis());
+    }
+
+    private Message addSeedReply(Post post, User author, String body, long timestamp) {
+        Message reply = new Message(UUID.randomUUID(), author.id(), post.id, timestamp, body);
         post.messages.insert(reply);
         return reply;
     }
 
+    private void seedLikes(UUID postId, User[] users) {
+        for (User user : users) {
+            if (user != null) engagementService.toggleLike(postId, user.id());
+        }
+    }
+
+    private void seedDislikes(UUID postId, User[] users) {
+        for (User user : users) {
+            if (user != null) engagementService.toggleDislike(postId, user.id());
+        }
+    }
     private LinearLayout page(String title) {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
