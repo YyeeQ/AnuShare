@@ -2668,23 +2668,8 @@ public class MainActivity extends Activity {
 
     private List<Message> reportedMessagesForAdmin(String mode, int amount) {
         ArrayList<Message> messages = new ArrayList<>();
-        for (Iterator<Message> it = ModerationTools.getReportedMessages("MOST", Math.max(amount, 200)); it.hasNext(); ) messages.add(it.next());
-        messages.sort((left, right) -> {
-            MessageReports leftReports = ReportDAO.getInstance().getReportsFor(left.id());
-            MessageReports rightReports = ReportDAO.getInstance().getReportsFor(right.id());
-            if ("OLDEST".equals(mode)) return Long.compare(left.timestamp(), right.timestamp());
-            if ("MOST".equals(mode)) {
-                int byCount = Integer.compare(rightReports == null ? 0 : rightReports.count(), leftReports == null ? 0 : leftReports.count());
-                if (byCount != 0) return byCount;
-                return Integer.compare(priorityRank(priorityLabel(rightReports)), priorityRank(priorityLabel(leftReports)));
-            }
-            int byPriority = Integer.compare(priorityRank(priorityLabel(rightReports)), priorityRank(priorityLabel(leftReports)));
-            if (byPriority != 0) return byPriority;
-            int byCount = Integer.compare(rightReports == null ? 0 : rightReports.count(), leftReports == null ? 0 : leftReports.count());
-            if (byCount != 0) return byCount;
-            return Long.compare(left.timestamp(), right.timestamp());
-        });
-        if (messages.size() > amount) return new ArrayList<>(messages.subList(0, amount));
+        Iterator<Message> it = ModerationTools.getReportedMessages(mode, amount);
+        while (it.hasNext()) messages.add(it.next());
         return messages;
     }
 

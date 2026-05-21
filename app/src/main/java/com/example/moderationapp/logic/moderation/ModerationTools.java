@@ -85,11 +85,6 @@ public class ModerationTools {
 
     private static Message getMessageByUUID(UUID messageId) {
         if (messageId == null) return null;
-        Iterator<Message> it = PostDAO.getInstance().getAllMessages();
-        while (it.hasNext()) {
-            Message message = it.next();
-            if (message.id().equals(messageId)) return message;
-        }
-        return null;
+        return PostDAO.getInstance().getMessageByUUID(messageId);
     }
 }
