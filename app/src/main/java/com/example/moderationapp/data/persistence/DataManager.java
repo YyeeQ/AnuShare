@@ -69,7 +69,7 @@ public class DataManager {
                 IO, new CSVFormattedFactory(new CSVFormat(5)), new LegacyPostEngagementSerializer(), "post_engagements");
 
         postEngagementPipeline = new DataPipeline<>(
-                IO, new CSVFormattedFactory(new CSVFormat(7)), new PostEngagementSerializer(), "post_engagement_details");
+                IO, new CSVFormattedFactory(new CSVFormat(6)), new PostEngagementSerializer(), "post_engagement_details");
 
         legacyReportPipeline = new DataPipeline<>(
                 IO, new CSVFormattedFactory(new CSVFormat(3)), new ReportSerializer(), "reports");

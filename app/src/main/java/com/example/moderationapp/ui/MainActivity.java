@@ -58,6 +58,7 @@ import com.example.moderationapp.logic.util.TimeFormatter;
 import com.example.moderationapp.R;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -393,16 +394,10 @@ public class MainActivity extends Activity {
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
-        topBar.setPadding(dp(20), dp(20), dp(20), dp(20));
-        topBar.setBackgroundColor(Color.parseColor("#7096D1"));
+        topBar.setPadding(dp(12), dp(12), dp(12), dp(12));
+        topBar.setBackgroundColor(Color.WHITE);
 
-        Button cancel = textActionButton("Cancel");
-        applyTimes(cancel, Typeface.NORMAL);
-        cancel.setTextColor(Color.WHITE);
-        cancel.setMinWidth(dp(104));
-        cancel.setMinimumWidth(dp(104));
-        cancel.setMinHeight(dp(48));
-        cancel.setMinimumHeight(dp(48));
+        Button cancel = ghostButton("Cancel");
         cancel.setOnClickListener(v -> showPostList());
         topBar.addView(cancel);
 
@@ -414,22 +409,22 @@ public class MainActivity extends Activity {
         title.setLayoutParams(titleParams);
         title.setGravity(Gravity.CENTER);
         title.setText("Create post");
-        title.setTextSize(22);
-        title.setTextColor(Color.rgb(9, 42, 122));
+        title.setTextSize(17);
+        title.setTextColor(Color.parseColor("#081F5C"));
         applyTimes(title, Typeface.BOLD);
         topBar.addView(title);
 
         Button post = new Button(this);
         post.setAllCaps(false);
         post.setText("Post");
-        post.setTextSize(15);
+        post.setTextSize(14);
         post.setMinHeight(0);
         post.setMinimumHeight(0);
-        post.setPadding(dp(18), dp(10), dp(18), dp(10));
-        post.setMinWidth(dp(104));
-        post.setMinimumWidth(dp(104));
-        post.setMinHeight(dp(48));
-        post.setMinimumHeight(dp(48));
+        post.setPadding(dp(18), dp(6), dp(18), dp(6));
+        post.setMinWidth(dp(80));
+        post.setMinimumWidth(dp(80));
+        post.setMinHeight(dp(34));
+        post.setMinimumHeight(dp(34));
         post.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -748,37 +743,44 @@ public class MainActivity extends Activity {
     }
 
     private View postDetailHeader() {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setBackgroundColor(Color.WHITE);
+
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(20), dp(20), dp(20), dp(20));
-        header.setBackgroundColor(Color.parseColor("#7096D1"));
+        header.setPadding(dp(12), dp(12), dp(20), dp(12));
 
         LinearLayout backGroup = new LinearLayout(this);
         backGroup.setOrientation(LinearLayout.HORIZONTAL);
         backGroup.setGravity(Gravity.CENTER_VERTICAL);
-        backGroup.setMinimumWidth(dp(104));
-        backGroup.setMinimumHeight(dp(48));
-        backGroup.setPadding(dp(6), 0, dp(6), 0);
+        backGroup.setMinimumHeight(dp(40));
+        backGroup.setPadding(dp(8), dp(4), dp(12), dp(4));
+        backGroup.setClickable(true);
+        backGroup.setFocusable(true);
         backGroup.setOnClickListener(v -> showPostList());
 
         TextView arrow = new TextView(this);
-        arrow.setText("<");
-        arrow.setTextSize(22);
-        arrow.setTextColor(Color.rgb(9, 42, 122));
-        arrow.setPadding(0, 0, dp(10), 0);
+        arrow.setText("\u2190");
+        arrow.setTextSize(20);
+        arrow.setTextColor(Color.parseColor("#081F5C"));
+        arrow.setPadding(0, 0, dp(8), 0);
         applyTimes(arrow, Typeface.BOLD);
         backGroup.addView(arrow);
 
         TextView back = new TextView(this);
         back.setText("Back");
-        back.setTextSize(18);
-        back.setTextColor(Color.rgb(9, 42, 122));
+        back.setTextSize(15);
+        back.setTextColor(Color.parseColor("#081F5C"));
         applyTimes(back, Typeface.BOLD);
         backGroup.addView(back);
 
         header.addView(backGroup);
-        return header;
+
+        container.addView(header);
+        container.addView(hairline());
+        return container;
     }
 
     private View postDetailLead(Post post, Message openingMessage) {
@@ -863,7 +865,7 @@ public class MainActivity extends Activity {
             placeholder.setTextSize(15);
             placeholder.setTextColor(Color.rgb(153, 163, 186));
             placeholder.setPadding(0, dp(4), 0, 0);
-            placeholder.setTypeface(Typeface.create("times new roman", Typeface.ITALIC));
+            placeholder.setTypeface(Typeface.create("sans-serif", Typeface.ITALIC));
             card.addView(placeholder);
             return card;
         }
@@ -1233,44 +1235,49 @@ public class MainActivity extends Activity {
     }
 
     private View postListHeader() {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setBackgroundColor(Color.WHITE);
+
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(20), dp(20), dp(20), dp(20));
-        header.setBackgroundColor(Color.parseColor("#7096D1"));
+        header.setPadding(dp(20), dp(16), dp(20), dp(16));
 
-        Button signOut = textActionButton("Sign out");
-        applyTimes(signOut, Typeface.NORMAL);
+        LinearLayout identity = new LinearLayout(this);
+        identity.setOrientation(LinearLayout.HORIZONTAL);
+        identity.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView headerAvatar = avatarView(currentUser, currentUser.username(), 32);
+        LinearLayout.LayoutParams headerAvatarParams = new LinearLayout.LayoutParams(dp(32), dp(32));
+        identity.addView(headerAvatar, headerAvatarParams);
+
+        TextView username = new TextView(this);
+        username.setText(currentUser.username());
+        username.setTextSize(15);
+        username.setTextColor(Color.parseColor("#081F5C"));
+        applyTimes(username, Typeface.BOLD);
+        LinearLayout.LayoutParams headerNameParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        headerNameParams.setMargins(dp(10), 0, 0, 0);
+        identity.addView(username, headerNameParams);
+
+        header.addView(identity);
+
+        View spacer = new View(this);
+        header.addView(spacer, new LinearLayout.LayoutParams(0, 0, 1f));
+
+        Button signOut = ghostButton("Sign out");
         signOut.setOnClickListener(v -> {
             currentUser = null;
             showLogin();
         });
         header.addView(signOut);
 
-        View spacer = new View(this);
-        header.addView(spacer, new LinearLayout.LayoutParams(0, 0, 1f));
-
-        LinearLayout identity = new LinearLayout(this);
-        identity.setOrientation(LinearLayout.HORIZONTAL);
-        identity.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView headerAvatar = avatarView(currentUser, currentUser.username(), 28);
-        LinearLayout.LayoutParams headerAvatarParams = new LinearLayout.LayoutParams(dp(28), dp(28));
-        identity.addView(headerAvatar, headerAvatarParams);
-
-        TextView username = new TextView(this);
-        username.setText(currentUser.username());
-        username.setTextSize(15);
-        username.setTextColor(Color.rgb(21, 23, 26));
-        applyTimes(username, Typeface.BOLD);
-        LinearLayout.LayoutParams headerNameParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        headerNameParams.setMargins(dp(8), 0, 0, 0);
-        identity.addView(username, headerNameParams);
-
-        header.addView(identity);
-        return header;
+        container.addView(header);
+        container.addView(hairline());
+        return container;
     }
 
     private View postCard(Post post, boolean isAdmin) {
@@ -1378,51 +1385,6 @@ public class MainActivity extends Activity {
         }
 
         return card;
-    }
-
-    private View trendingPostCard(Post post, boolean isAdmin) {
-        PostEngagement.Tag tag = engagementService.ensureMetadata(post.id).tag();
-        LinearLayout wrapper = new LinearLayout(this);
-        wrapper.setOrientation(LinearLayout.VERTICAL);
-        wrapper.setLayoutParams(blockParams());
-        wrapper.addView(postCard(post, isAdmin, () -> showTrendingPage(tag)));
-
-        TextView score = smallText(String.format(Locale.getDefault(), "Hot score %.1f", engagementService.score(post, isAdmin)));
-        score.setGravity(Gravity.END);
-        score.setPadding(0, 0, dp(4), dp(8));
-        applyTimes(score, Typeface.BOLD);
-        wrapper.addView(score);
-        return wrapper;
-    }
-
-    private View landingTabs(boolean trending, PostEngagement.Tag selectedTag) {
-        LinearLayout tabs = new LinearLayout(this);
-        tabs.setOrientation(LinearLayout.HORIZONTAL);
-        tabs.setGravity(Gravity.CENTER);
-        tabs.setPadding(dp(20), dp(14), dp(20), dp(8));
-        tabs.setBackgroundColor(Color.WHITE);
-
-        Button posts = tabButton("Posts", !trending);
-        posts.setOnClickListener(v -> showPostList());
-        tabs.addView(posts, new LinearLayout.LayoutParams(0, dp(44), 1f));
-
-        Button hot = tabButton("Trending", trending);
-        hot.setOnClickListener(v -> showTrendingPage(selectedTag == null ? PostEngagement.Tag.ACADEMIC : selectedTag));
-        LinearLayout.LayoutParams hotParams = new LinearLayout.LayoutParams(0, dp(44), 1f);
-        hotParams.setMargins(dp(10), 0, 0, 0);
-        tabs.addView(hot, hotParams);
-        return tabs;
-    }
-
-    private Button tabButton(String text, boolean selected) {
-        Button button = new Button(this);
-        button.setAllCaps(false);
-        button.setText(text);
-        button.setTextSize(15);
-        button.setTextColor(selected ? Color.WHITE : Color.rgb(9, 42, 122));
-        button.setBackground(tabBackground(selected));
-        applyTimes(button, Typeface.BOLD);
-        return button;
     }
 
     private GradientDrawable timeMenuBackground() {
@@ -1604,29 +1566,6 @@ public class MainActivity extends Activity {
         button.setBackground(tagBackground(selected));
     }
 
-    private View tagJumpBar(PostEngagement.Tag activeTag) {
-        LinearLayout section = new LinearLayout(this);
-        section.setOrientation(LinearLayout.VERTICAL);
-        section.setPadding(0, dp(14), 0, dp(22));
-
-        TextView label = sectionLabel("CATEGORIES");
-        section.addView(label);
-
-        FlowLayout chips = new FlowLayout(this, dp(8), dp(8));
-        chips.setPadding(0, dp(10), 0, 0);
-
-        for (PostEngagement.Tag tag : PostEngagement.Tag.values()) {
-            TextView chip = tagChip(tag, tag == activeTag);
-            chip.setOnClickListener(v -> showTrendingPage(tag));
-            ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            chips.addView(chip, params);
-        }
-        section.addView(chips);
-        return section;
-    }
-
     private TextView tagChip(PostEngagement.Tag tag, boolean selected) {
         TextView chip = new TextView(this);
         chip.setText("#" + tag.label());
@@ -1636,7 +1575,7 @@ public class MainActivity extends Activity {
         chip.setPadding(dp(10), dp(5), dp(10), dp(5));
         chip.setClickable(true);
         chip.setFocusable(true);
-        chip.setOnClickListener(v -> showTrendingPage(tag));
+        chip.setOnClickListener(v -> showTrendingPage());
         applyTimes(chip, Typeface.BOLD);
         return chip;
     }
@@ -1787,31 +1726,37 @@ public class MainActivity extends Activity {
         FrameLayout dock = new FrameLayout(this);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(124));
+                dp(110));
         params.gravity = Gravity.BOTTOM;
         dock.setLayoutParams(params);
 
+        // Floating pill nav: rounded, dark, with selection highlight
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(20), 0, dp(20), 0);
+        bar.setPadding(dp(6), dp(6), dp(6), dp(6));
+        bar.setBackground(pillNavBackground());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            bar.setElevation(dp(8));
+        }
         FrameLayout.LayoutParams barParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(52));
-        barParams.gravity = Gravity.BOTTOM;
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                dp(54));
+        barParams.gravity = Gravity.BOTTOM | Gravity.START;
+        barParams.leftMargin = dp(20);
+        barParams.bottomMargin = dp(24);
         bar.setLayoutParams(barParams);
-        bar.setBackground(dockBackground());
         bar.setVisibility(View.VISIBLE);
         bar.setAlpha(1f);
         bottomNavBar = bar;
 
-        View posts = bottomNavItem(true, "Posts", !trending);
+        View posts = pillNavItem("Posts", !trending);
         posts.setOnClickListener(v -> showPostList());
-        bar.addView(posts, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
+        bar.addView(posts);
 
-        View hot = bottomNavItem(false, "Trending", trending);
-        hot.setOnClickListener(v -> showTrendingPage(selectedTag == null ? PostEngagement.Tag.ACADEMIC : selectedTag));
-        bar.addView(hot, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
+        View hot = pillNavItem("\uD83D\uDD25 Trending", trending);
+        hot.setOnClickListener(v -> showTrendingPage());
+        bar.addView(hot);
 
         dock.addView(bar);
         dock.setOnTouchListener((v, event) -> {
@@ -1821,22 +1766,58 @@ public class MainActivity extends Activity {
 
         if (!trending) {
             Button createPost = new Button(this);
-            FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(dp(56), dp(56));
-            buttonParams.gravity = Gravity.TOP | Gravity.END;
-            buttonParams.topMargin = dp(10);
+            FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(dp(60), dp(60));
+            buttonParams.gravity = Gravity.BOTTOM | Gravity.END;
             buttonParams.rightMargin = dp(20);
+            buttonParams.bottomMargin = dp(20);
             createPost.setLayoutParams(buttonParams);
             createPost.setText("+");
-            createPost.setTextSize(24);
+            createPost.setTextSize(28);
             applyTimes(createPost, Typeface.BOLD);
             createPost.setAllCaps(false);
             createPost.setTextColor(Color.WHITE);
             createPost.setBackground(fabBackground());
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                createPost.setElevation(dp(8));
+            }
             createPost.setOnClickListener(v -> showCreatePost());
             dock.addView(createPost);
         }
 
         return dock;
+    }
+
+    private View pillNavItem(String text, boolean selected) {
+        TextView item = new TextView(this);
+        item.setText(text);
+        item.setTextSize(14);
+        item.setTextColor(selected ? Color.parseColor("#081F5C") : Color.parseColor("#E7F1FF"));
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(dp(20), dp(8), dp(20), dp(8));
+        item.setBackground(pillNavItemBackground(selected));
+        item.setClickable(true);
+        item.setFocusable(true);
+        applyTimes(item, Typeface.BOLD);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.MATCH_PARENT);
+        params.setMargins(dp(2), 0, dp(2), 0);
+        item.setLayoutParams(params);
+        return item;
+    }
+
+    private GradientDrawable pillNavBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.parseColor("#081F5C"));
+        drawable.setCornerRadius(dp(30));
+        return drawable;
+    }
+
+    private GradientDrawable pillNavItemBackground(boolean selected) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(selected ? Color.WHITE : Color.TRANSPARENT);
+        drawable.setCornerRadius(dp(24));
+        return drawable;
     }
 
     private void revealBottomNav(View bar) {
@@ -1854,54 +1835,12 @@ public class MainActivity extends Activity {
                 .start();
     }
 
-    private View bottomNavItem(boolean commentIcon, String text, boolean selected) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(LinearLayout.HORIZONTAL);
-        item.setGravity(Gravity.CENTER);
-        item.setClickable(true);
-        item.setFocusable(true);
-
-        int activeColor = Color.parseColor("#081F5C");
-        int inactiveColor = Color.rgb(93, 102, 117);
-        int itemColor = selected ? activeColor : inactiveColor;
-
-        if (commentIcon) {
-            ImageView icon = new ImageView(this);
-            Drawable drawable = getDrawable(android.R.drawable.sym_action_chat);
-            if (drawable != null) {
-                drawable = drawable.mutate();
-                drawable.setTint(itemColor);
-                icon.setImageDrawable(drawable);
-            }
-            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(16), dp(16));
-            iconParams.setMargins(0, 0, dp(6), 0);
-            item.addView(icon, iconParams);
-        } else {
-            TextView rocketIcon = new TextView(this);
-            rocketIcon.setText("🚀");
-            rocketIcon.setTextSize(15);
-            rocketIcon.setTextColor(itemColor);
-            rocketIcon.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            iconParams.setMargins(0, 0, dp(6), 0);
-            item.addView(rocketIcon, iconParams);
-        }
-
-        TextView label = new TextView(this);
-        label.setText(text);
-        label.setTextSize(15);
-        label.setTextColor(itemColor);
-        label.setGravity(Gravity.CENTER);
-        applyTimes(label, Typeface.BOLD);
-        item.addView(label);
-        return item;
+    private void showTrendingPage(PostEngagement.Tag selectedTag) {
+        showTrendingPage();
     }
 
-    private void showTrendingPage(PostEngagement.Tag selectedTag) {
+    private void showTrendingPage() {
         boolean isAdmin = currentUser.role() == User.Role.Admin;
-        PostEngagement.Tag activeTag = selectedTag == null ? PostEngagement.Tag.ACADEMIC : selectedTag;
 
         FrameLayout screen = new FrameLayout(this);
         screen.setBackgroundColor(Color.parseColor("#F9FCFF"));
@@ -1916,41 +1855,264 @@ public class MainActivity extends Activity {
 
         content.addView(postListHeader());
 
-        LinearLayout listSection = new LinearLayout(this);
-        listSection.setOrientation(LinearLayout.VERTICAL);
-        listSection.setPadding(dp(20), dp(18), dp(20), 0);
+        // Hero header with title + algorithm caption
+        LinearLayout hero = new LinearLayout(this);
+        hero.setOrientation(LinearLayout.VERTICAL);
+        hero.setPadding(dp(20), dp(24), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("Trending in #" + activeTag.label());
-        title.setTextSize(22);
-        title.setTextColor(Color.rgb(9, 42, 122));
-        title.setPadding(0, 0, 0, dp(8));
+        title.setText("\uD83D\uDD25 Trending");
+        title.setTextSize(30);
+        title.setTextColor(Color.parseColor("#081F5C"));
         applyTimes(title, Typeface.BOLD);
-        listSection.addView(title);
+        hero.addView(title);
 
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Ranked by community engagement \u00B7 likes \u00D7 3 + replies \u00D7 2 \u2212 dislikes \u00D7 1.5");
+        subtitle.setTextSize(12);
+        subtitle.setTextColor(Color.rgb(93, 102, 117));
+        subtitle.setPadding(0, dp(6), 0, 0);
+        applyTimes(subtitle, Typeface.NORMAL);
+        hero.addView(subtitle);
+        content.addView(hero);
+
+        // Collect trending posts
         List<Post> posts = new ArrayList<>();
-        for (Post item : engagementService.trendingPosts(activeTag, isAdmin)) {
+        for (Post item : engagementService.trendingPosts(null, isAdmin)) {
             if (canViewPost(item)) posts.add(item);
         }
+
+        LinearLayout listSection = new LinearLayout(this);
+        listSection.setOrientation(LinearLayout.VERTICAL);
+        listSection.setPadding(dp(20), dp(10), dp(20), 0);
+
         if (posts.isEmpty()) {
-            TextView empty = bodyText("No posts in this tag yet.");
+            TextView empty = bodyText("No posts yet.");
             empty.setPadding(0, dp(28), 0, dp(28));
             listSection.addView(empty);
         } else {
-            for (Post post : posts) {
-                listSection.addView(trendingPostCard(post, isAdmin));
+            for (int i = 0; i < posts.size(); i++) {
+                Post post = posts.get(i);
+                int rank = i + 1;
+                if (rank <= 3) {
+                    listSection.addView(trendingTopCard(post, rank, isAdmin));
+                } else {
+                    if (rank == 4) {
+                        listSection.addView(trendingListDivider());
+                    }
+                    listSection.addView(trendingListRow(post, rank, isAdmin));
+                }
             }
         }
 
-        listSection.addView(tagJumpBar(activeTag));
         content.addView(listSection);
-
         scrollView.addView(content);
         screen.addView(scrollView);
-        screen.addView(postComposerDock(true, activeTag));
+        screen.addView(postComposerDock(true, null));
 
         root.removeAllViews();
         root.addView(screen);
+    }
+
+    // ===== Trending page UI components =====
+
+    private static final int TRENDING_ACCENT = 0xFFE85D24;   // orange accent for Top 3
+    private static final int TRENDING_TEXT_DARK = 0xFF081F5C;
+
+    private View trendingTopCard(Post post, int rank, boolean isAdmin) {
+        PostEngagement engagement = engagementService.ensureMetadata(post.id);
+        double score = engagementService.score(post, isAdmin);
+        User authorUser = UserDAO.getInstance().getByUUID(post.poster);
+        Message opening = openingMessage(post);
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams cardParams = blockParams();
+        cardParams.setMargins(0, dp(6), 0, dp(10));
+        card.setLayoutParams(cardParams);
+        card.setBackground(trendingTopCardBackground());
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setClickable(true);
+        card.setFocusable(true);
+        card.setOnClickListener(v -> showPostDetail(post));
+
+        // Top row: rank + fire score
+        LinearLayout topRow = new LinearLayout(this);
+        topRow.setOrientation(LinearLayout.HORIZONTAL);
+        topRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView rankView = new TextView(this);
+        rankView.setText("#" + rank);
+        rankView.setTextSize(32);
+        rankView.setTextColor(TRENDING_ACCENT);
+        applyTimes(rankView, Typeface.BOLD);
+        topRow.addView(rankView);
+
+        View spacer = new View(this);
+        topRow.addView(spacer, new LinearLayout.LayoutParams(0, 0, 1f));
+
+        TextView fire = new TextView(this);
+        fire.setText("\uD83D\uDD25 " + String.format(Locale.getDefault(), "%.1f", score));
+        fire.setTextSize(18);
+        fire.setTextColor(TRENDING_ACCENT);
+        applyTimes(fire, Typeface.BOLD);
+        topRow.addView(fire);
+
+        card.addView(topRow);
+
+        // Title
+        TextView postTitle = new TextView(this);
+        postTitle.setText(post.topic);
+        postTitle.setTextSize(19);
+        postTitle.setTextColor(TRENDING_TEXT_DARK);
+        postTitle.setPadding(0, dp(8), 0, dp(2));
+        postTitle.setMaxLines(2);
+        postTitle.setEllipsize(TextUtils.TruncateAt.END);
+        applyTimes(postTitle, Typeface.BOLD);
+        card.addView(postTitle);
+
+        // Meta line: author · tag
+        TextView meta = new TextView(this);
+        String authorName = authorUser == null ? "Unknown" : authorUser.username();
+        meta.setText("by " + authorName + "  \u00B7  #" + engagement.tag().label());
+        meta.setTextSize(12);
+        meta.setTextColor(Color.rgb(93, 102, 117));
+        meta.setPadding(0, dp(4), 0, dp(10));
+        applyTimes(meta, Typeface.NORMAL);
+        card.addView(meta);
+
+        // Preview body (truncated)
+        if (opening != null) {
+            TextView preview = new TextView(this);
+            preview.setText(opening.message());
+            preview.setTextSize(14);
+            preview.setTextColor(Color.rgb(60, 75, 110));
+            preview.setMaxLines(2);
+            preview.setEllipsize(TextUtils.TruncateAt.END);
+            preview.setPadding(0, 0, 0, dp(12));
+            applyTimes(preview, Typeface.NORMAL);
+            card.addView(preview);
+        }
+
+        // Stats row
+        LinearLayout stats = new LinearLayout(this);
+        stats.setOrientation(LinearLayout.HORIZONTAL);
+        stats.setGravity(Gravity.CENTER_VERTICAL);
+
+        stats.addView(trendingStatChip("\u25B2", String.valueOf(engagement.likes())));
+        stats.addView(trendingStatChip("\u25BC", String.valueOf(engagement.dislikes())));
+        stats.addView(trendingStatChip("\uD83D\uDCAC", String.valueOf(replyCount(post, isAdmin))));
+
+        card.addView(stats);
+        return card;
+    }
+
+    private View trendingListRow(Post post, int rank, boolean isAdmin) {
+        PostEngagement engagement = engagementService.ensureMetadata(post.id);
+        double score = engagementService.score(post, isAdmin);
+        User authorUser = UserDAO.getInstance().getByUUID(post.poster);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rowParams = blockParams();
+        rowParams.setMargins(0, 0, 0, 0);
+        row.setLayoutParams(rowParams);
+        row.setPadding(dp(4), dp(12), dp(4), dp(12));
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setOnClickListener(v -> showPostDetail(post));
+
+        TextView rankView = new TextView(this);
+        rankView.setText("#" + rank);
+        rankView.setTextSize(18);
+        rankView.setTextColor(Color.rgb(140, 152, 178));
+        rankView.setGravity(Gravity.CENTER);
+        applyTimes(rankView, Typeface.BOLD);
+        LinearLayout.LayoutParams rankParams = new LinearLayout.LayoutParams(dp(44), LinearLayout.LayoutParams.WRAP_CONTENT);
+        row.addView(rankView, rankParams);
+
+        LinearLayout textCol = new LinearLayout(this);
+        textCol.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams textColParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        textColParams.setMargins(dp(8), 0, dp(8), 0);
+
+        TextView topic = new TextView(this);
+        topic.setText(post.topic);
+        topic.setTextSize(15);
+        topic.setTextColor(TRENDING_TEXT_DARK);
+        topic.setMaxLines(1);
+        topic.setEllipsize(TextUtils.TruncateAt.END);
+        applyTimes(topic, Typeface.BOLD);
+        textCol.addView(topic);
+
+        TextView meta = new TextView(this);
+        String authorName = authorUser == null ? "Unknown" : authorUser.username();
+        meta.setText("by " + authorName + "  \u00B7  #" + engagement.tag().label() + "  \u00B7  \u25B2 " + engagement.likes() + "  \u25BC " + engagement.dislikes() + "  \uD83D\uDCAC " + replyCount(post, isAdmin));
+        meta.setTextSize(11);
+        meta.setTextColor(Color.rgb(93, 102, 117));
+        meta.setPadding(0, dp(3), 0, 0);
+        applyTimes(meta, Typeface.NORMAL);
+        textCol.addView(meta);
+
+        row.addView(textCol, textColParams);
+
+        TextView fire = new TextView(this);
+        fire.setText("\uD83D\uDD25 " + String.format(Locale.getDefault(), "%.1f", score));
+        fire.setTextSize(13);
+        fire.setTextColor(Color.rgb(140, 152, 178));
+        applyTimes(fire, Typeface.BOLD);
+        row.addView(fire);
+
+        return row;
+    }
+
+    private View trendingListDivider() {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams params = blockParams();
+        params.setMargins(0, dp(14), 0, dp(6));
+        container.setLayoutParams(params);
+
+        TextView label = new TextView(this);
+        label.setText("MORE TRENDING");
+        label.setTextSize(11);
+        label.setTextColor(Color.rgb(140, 152, 178));
+        label.setLetterSpacing(0.12f);
+        applyTimes(label, Typeface.BOLD);
+        container.addView(label);
+
+        View line = new View(this);
+        LinearLayout.LayoutParams lineParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
+        lineParams.setMargins(0, dp(6), 0, 0);
+        line.setLayoutParams(lineParams);
+        line.setBackgroundColor(Color.parseColor("#E8EEF8"));
+        container.addView(line);
+
+        return container;
+    }
+
+    private TextView trendingStatChip(String iconText, String value) {
+        TextView chip = new TextView(this);
+        chip.setText(iconText + " " + value);
+        chip.setTextSize(13);
+        chip.setTextColor(Color.rgb(60, 75, 110));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, dp(18), 0);
+        chip.setLayoutParams(params);
+        applyTimes(chip, Typeface.BOLD);
+        return chip;
+    }
+
+    private GradientDrawable trendingTopCardBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.WHITE);
+        drawable.setCornerRadius(dp(14));
+        drawable.setStroke(dp(2), TRENDING_ACCENT);
+        return drawable;
     }
 
     private void showAdminPanel() {
@@ -1968,29 +2130,30 @@ public class MainActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(20), dp(20), dp(20), dp(20));
-        header.setBackgroundColor(Color.parseColor("#7096D1"));
+        header.setPadding(dp(12), dp(12), dp(16), dp(12));
+        header.setBackgroundColor(Color.WHITE);
 
         LinearLayout backGroup = new LinearLayout(this);
         backGroup.setOrientation(LinearLayout.HORIZONTAL);
         backGroup.setGravity(Gravity.CENTER_VERTICAL);
-        backGroup.setMinimumWidth(dp(104));
-        backGroup.setMinimumHeight(dp(48));
-        backGroup.setPadding(dp(6), 0, dp(6), 0);
+        backGroup.setMinimumHeight(dp(40));
+        backGroup.setPadding(dp(8), dp(4), dp(12), dp(4));
+        backGroup.setClickable(true);
+        backGroup.setFocusable(true);
         backGroup.setOnClickListener(v -> showPostList());
 
         TextView arrow = new TextView(this);
-        arrow.setText("<");
-        arrow.setTextSize(22);
-        arrow.setTextColor(Color.rgb(9, 42, 122));
-        arrow.setPadding(0, 0, dp(10), 0);
+        arrow.setText("\u2190");
+        arrow.setTextSize(20);
+        arrow.setTextColor(Color.parseColor("#081F5C"));
+        arrow.setPadding(0, 0, dp(8), 0);
         applyTimes(arrow, Typeface.BOLD);
         backGroup.addView(arrow);
 
         TextView back = new TextView(this);
         back.setText("Back");
-        back.setTextSize(18);
-        back.setTextColor(Color.rgb(9, 42, 122));
+        back.setTextSize(15);
+        back.setTextColor(Color.parseColor("#081F5C"));
         applyTimes(back, Typeface.BOLD);
         backGroup.addView(back);
 
@@ -1998,8 +2161,8 @@ public class MainActivity extends Activity {
 
         TextView title = new TextView(this);
         title.setText("Admin Dashboard");
-        title.setTextSize(22);
-        title.setTextColor(Color.parseColor("#092A7A"));
+        title.setTextSize(17);
+        title.setTextColor(Color.parseColor("#081F5C"));
         title.setGravity(Gravity.CENTER);
         applyTimes(title, Typeface.BOLD);
         header.addView(title, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -2014,6 +2177,7 @@ public class MainActivity extends Activity {
         header.addView(adminBadge);
 
         content.addView(header);
+        content.addView(hairline());
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
@@ -2344,6 +2508,41 @@ public class MainActivity extends Activity {
         return button;
     }
 
+    /** Outline-style button on a light background — used in white-bg headers. */
+    private Button ghostButton(String text) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setTextSize(13);
+        button.setTextColor(Color.parseColor("#081F5C"));
+        button.setBackground(ghostButtonBackground());
+        button.setMinHeight(dp(34));
+        button.setMinimumHeight(dp(34));
+        button.setMinWidth(dp(80));
+        button.setMinimumWidth(dp(80));
+        button.setPadding(dp(14), dp(4), dp(14), dp(4));
+        applyTimes(button, Typeface.BOLD);
+        return button;
+    }
+
+    private GradientDrawable ghostButtonBackground() {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(Color.TRANSPARENT);
+        drawable.setCornerRadius(dp(17));
+        drawable.setStroke(dp(1), Color.parseColor("#D0D9E6"));
+        return drawable;
+    }
+
+    /** 1dp light divider line, used to bottom-border headers. */
+    private View hairline() {
+        View line = new View(this);
+        line.setBackgroundColor(Color.parseColor("#EAEEF4"));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
+        line.setLayoutParams(params);
+        return line;
+    }
+
     private void setActionButtonEnabled(Button button, boolean enabled) {
         button.setEnabled(enabled);
         button.setTextColor(enabled ? Color.WHITE : Color.rgb(134, 158, 198));
@@ -2641,19 +2840,6 @@ public class MainActivity extends Activity {
         return drawable;
     }
 
-    private GradientDrawable dockBackground() {
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setColor(Color.parseColor("#7096D1"));
-        float radius = dp(20);
-        drawable.setCornerRadii(new float[] {
-                radius, radius,
-                radius, radius,
-                0f, 0f,
-                0f, 0f
-        });
-        return drawable;
-    }
-
     private GradientDrawable fabBackground() {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(Color.parseColor("#081F5C"));
@@ -2727,13 +2913,6 @@ public class MainActivity extends Activity {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(Color.parseColor("#E7F1FF"));
         drawable.setCornerRadius(dp(18));
-        return drawable;
-    }
-
-    private GradientDrawable tabBackground(boolean selected) {
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setColor(selected ? Color.parseColor("#081F5C") : Color.parseColor("#E7F1FF"));
-        drawable.setCornerRadius(dp(22));
         return drawable;
     }
 
@@ -2831,7 +3010,13 @@ public class MainActivity extends Activity {
     }
 
     private void applyTimes(TextView view, int style) {
-        view.setTypeface(Typeface.create("times new roman", style));
+        // Despite the legacy name, this now applies the platform sans-serif typeface.
+        // sans-serif-medium gives a slightly heavier feel than NORMAL; pair with BOLD for headings.
+        if (style == Typeface.BOLD) {
+            view.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        } else {
+            view.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+        }
     }
 
     private void setPage(View view) {
@@ -3038,6 +3223,7 @@ public class MainActivity extends Activity {
         return helper;
     }
 
+    @android.annotation.SuppressLint("MissingPermission")
     private void showReplyNotification(Post post, Message reply) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
