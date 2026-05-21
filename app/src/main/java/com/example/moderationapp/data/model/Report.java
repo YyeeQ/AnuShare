@@ -1,8 +1,18 @@
 package com.example.moderationapp.data.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
-public record Report(UUID message, UUID user, long timestamp, Type type, Priority priority) {
+public class Report {
+    private final UUID message;
+    private final UUID user;
+    private final long timestamp;
+    private final List<Type> types;
+    private final String reason;
+    private final Priority priority;
+
     public enum Priority {
         LOW(0),
         MEDIUM(1),
@@ -66,10 +76,79 @@ public record Report(UUID message, UUID user, long timestamp, Type type, Priorit
     }
 
     public Report(UUID message, UUID user, long timestamp) {
-        this(message, user, timestamp, Type.OTHER);
+        this(message, user, timestamp, Type.OTHER, "");
     }
 
     public Report(UUID message, UUID user, long timestamp, Type type) {
-        this(message, user, timestamp, type, type == null ? Priority.MEDIUM : type.priority());
+        this(message, user, timestamp, type, "");
+    }
+
+    public Report(UUID message, UUID user, long timestamp, Type type, String reason) {
+        List<Type> selected = new ArrayList<>();
+        selected.add(type == null ? Type.OTHER : type);
+        this.message = message;
+        this.user = user;
+        this.timestamp = timestamp;
+        this.types = sanitizeTypes(selected);
+        this.reason = reason == null ? "" : reason;
+        this.priority = highestPriority(this.types);
+    }
+
+    public Report(UUID message, UUID user, long timestamp, List<Type> types, String reason) {
+        this.message = message;
+        this.user = user;
+        this.timestamp = timestamp;
+        this.types = sanitizeTypes(types);
+        this.reason = reason == null ? "" : reason;
+        this.priority = highestPriority(this.types);
+    }
+
+    public UUID message() {
+        return message;
+    }
+
+    public UUID user() {
+        return user;
+    }
+
+    public long timestamp() {
+        return timestamp;
+    }
+
+    public Type type() {
+        return types.isEmpty() ? Type.OTHER : types.get(0);
+    }
+
+    public List<Type> types() {
+        return Collections.unmodifiableList(types);
+    }
+
+    public String reason() {
+        return reason;
+    }
+
+    public Priority priority() {
+        return priority;
+    }
+
+    private static List<Type> sanitizeTypes(List<Type> source) {
+        List<Type> result = new ArrayList<>();
+        if (source != null) {
+            for (Type type : source) {
+                if (type != null && !result.contains(type)) result.add(type);
+            }
+        }
+        if (result.isEmpty()) result.add(Type.OTHER);
+        return result;
+    }
+
+    private static Priority highestPriority(List<Type> types) {
+        Priority highest = Priority.LOW;
+        for (Type type : types) {
+            if (type.priority().rank() > highest.rank()) {
+                highest = type.priority();
+            }
+        }
+        return highest;
     }
 }

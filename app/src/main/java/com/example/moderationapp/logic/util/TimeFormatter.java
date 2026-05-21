@@ -87,6 +87,10 @@ public final class TimeFormatter {
         return new SimpleDateFormat("MMM d", Locale.getDefault()).format(new Date(timestamp));
     }
 
+    public static String exact(long timestamp) {
+        return new SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(new Date(timestamp));
+    }
+
     private static String plural(long n) {
         return n == 1 ? "" : "s";
     }
