@@ -82,31 +82,7 @@ public class MainActivity extends Activity {
     private final Handler notificationHandler = new Handler(Looper.getMainLooper());
     private UUID pendingPostId;
     private boolean inForeground;
-    private boolean timeFiltersVisible = false;
     private View bottomNavBar;
-
-    private enum TimeFilter {
-        ALL("All", Long.MAX_VALUE),
-        WEEK("Week", 7L * ONE_DAY_MS);
-
-        private final String label;
-        private final long maxAgeMs;
-
-        TimeFilter(String label, long maxAgeMs) {
-            this.label = label;
-            this.maxAgeMs = maxAgeMs;
-        }
-
-        String label() {
-            return label;
-        }
-
-        boolean includes(long timestamp) {
-            if (this == ALL) return true;
-            if (timestamp == Long.MIN_VALUE) return false;
-            return System.currentTimeMillis() - timestamp <= maxAgeMs;
-        }
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -312,12 +288,7 @@ public class MainActivity extends Activity {
     }
 
     private void showPostList() {
-        showPostList(TimeFilter.ALL);
-    }
-
-    private void showPostList(TimeFilter activeFilter) {
         boolean isAdmin = currentUser.role() == User.Role.Admin;
-        TimeFilter filter = activeFilter == null ? TimeFilter.ALL : activeFilter;
 
         FrameLayout screen = new FrameLayout(this);
         screen.setBackgroundColor(Color.parseColor("#F9FCFF"));
@@ -339,7 +310,6 @@ public class MainActivity extends Activity {
         LinearLayout listSection = new LinearLayout(this);
         listSection.setOrientation(LinearLayout.VERTICAL);
         listSection.setPadding(dp(20), dp(18), dp(20), 0);
-        listSection.addView(timeFilterBar(filter, selected -> showPostList(selected)));
 
         if (isAdmin) {
             listSection.addView(adminListIntroCard());
@@ -355,7 +325,7 @@ public class MainActivity extends Activity {
         List<Post> posts = new ArrayList<>();
         for (Iterator<Post> it = PostDAO.getInstance().getAll(); it.hasNext(); ) {
             Post item = it.next();
-            if (canViewPost(item) && filter.includes(postTimestamp(item, isAdmin))) posts.add(item);
+            if (canViewPost(item)) posts.add(item);
         }
         posts.sort((left, right) -> Long.compare(postTimestamp(right, isAdmin), postTimestamp(left, isAdmin)));
 
@@ -366,7 +336,7 @@ public class MainActivity extends Activity {
             listSection.addView(empty);
         } else {
             for (Post post : posts) {
-                listSection.addView(postCard(post, isAdmin, () -> showPostList(filter)));
+                listSection.addView(postCard(post, isAdmin, this::showPostList));
             }
         }
 
@@ -374,9 +344,6 @@ public class MainActivity extends Activity {
 
         scrollView.addView(content);
         screen.addView(scrollView);
-        if (timeFiltersVisible) {
-            screen.addView(timeFilterOverlay(filter, selected -> showPostList(selected)));
-        }
         screen.addView(postComposerDock(false, null));
 
         root.removeAllViews();
@@ -495,7 +462,6 @@ public class MainActivity extends Activity {
         formSection.setPadding(dp(26), dp(24), dp(26), dp(28));
         final Set<PostEngagement.Tag> selectedTags = new LinkedHashSet<>();
         selectedTags.add(PostEngagement.Tag.ACADEMIC);
-        final Set<String> customTags = new LinkedHashSet<>();
         final PostEngagement.Visibility[] selectedVisibility =
                 new PostEngagement.Visibility[] {PostEngagement.Visibility.PUBLIC};
 
@@ -590,7 +556,7 @@ public class MainActivity extends Activity {
                 toast("Unable to create post");
                 return;
             }
-            engagementService.updatePostSettings(newPost.id, selectedTags, customTags, selectedVisibility[0]);
+            engagementService.updatePostSettings(newPost.id, selectedTags, selectedVisibility[0]);
 
             saveInBackground(() -> {
                 toast("Post created");
@@ -666,7 +632,6 @@ public class MainActivity extends Activity {
             selectedTags.clear();
             selectedTags.add(first);
         }
-        Set<String> customTags = new LinkedHashSet<>(engagement.customTags());
         PostEngagement.Visibility[] selectedVisibility =
                 new PostEngagement.Visibility[] {engagement.visibility()};
 
@@ -694,8 +659,7 @@ public class MainActivity extends Activity {
 
         Button save = primaryButton("Save settings");
         save.setOnClickListener(v -> {
-            customTags.clear();
-            engagementService.updatePostSettings(post.id, selectedTags, customTags, selectedVisibility[0]);
+            engagementService.updatePostSettings(post.id, selectedTags, selectedVisibility[0]);
             saveInBackground(() -> {
                 toast("Post settings updated");
                 showPostDetail(post);
@@ -1417,15 +1381,11 @@ public class MainActivity extends Activity {
     }
 
     private View trendingPostCard(Post post, boolean isAdmin) {
-        return trendingPostCard(post, isAdmin, TimeFilter.ALL);
-    }
-
-    private View trendingPostCard(Post post, boolean isAdmin, TimeFilter activeFilter) {
         PostEngagement.Tag tag = engagementService.ensureMetadata(post.id).tag();
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
         wrapper.setLayoutParams(blockParams());
-        wrapper.addView(postCard(post, isAdmin, () -> showTrendingPage(tag, activeFilter)));
+        wrapper.addView(postCard(post, isAdmin, () -> showTrendingPage(tag)));
 
         TextView score = smallText(String.format(Locale.getDefault(), "Hot score %.1f", engagementService.score(post, isAdmin)));
         score.setGravity(Gravity.END);
@@ -1463,97 +1423,6 @@ public class MainActivity extends Activity {
         button.setBackground(tabBackground(selected));
         applyTimes(button, Typeface.BOLD);
         return button;
-    }
-
-    private interface TimeFilterAction {
-        void select(TimeFilter filter);
-    }
-
-    private View timeFilterBar(TimeFilter activeFilter, TimeFilterAction action) {
-        LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(0, 0, 0, 0);
-
-        LinearLayout topRow = new LinearLayout(this);
-        topRow.setOrientation(LinearLayout.HORIZONTAL);
-        topRow.setGravity(Gravity.CENTER_VERTICAL);
-        topRow.setLayoutParams(edgeToEdgeParams());
-
-        View spacer = new View(this);
-        topRow.addView(spacer, new LinearLayout.LayoutParams(0, dp(1), 1f));
-
-        TextView toggle = new TextView(this);
-        toggle.setText("Time " + activeFilter.label() + (timeFiltersVisible ? "  ▼" : "  ◀"));
-        toggle.setTextSize(15);
-        toggle.setTextColor(Color.rgb(93, 102, 117));
-        toggle.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
-        toggle.setPadding(dp(8), 0, 0, 0);
-        toggle.setClickable(true);
-        toggle.setFocusable(true);
-        applyTimes(toggle, Typeface.BOLD);
-        toggle.setOnClickListener(v -> {
-            timeFiltersVisible = !timeFiltersVisible;
-            action.select(activeFilter);
-        });
-        topRow.addView(toggle, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-        container.addView(topRow);
-        return container;
-    }
-
-    private View timeFilterOverlay(TimeFilter activeFilter, TimeFilterAction action) {
-        FrameLayout overlay = new FrameLayout(this);
-        overlay.setClickable(true);
-        overlay.setFocusable(false);
-        overlay.setOnClickListener(v -> {
-            timeFiltersVisible = false;
-            action.select(activeFilter);
-        });
-        overlay.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT));
-
-        LinearLayout menu = new LinearLayout(this);
-        menu.setOrientation(LinearLayout.VERTICAL);
-        menu.setPadding(0, dp(10), 0, dp(10));
-        menu.setBackground(timeMenuBackground());
-        menu.setClickable(true);
-        menu.setOnClickListener(v -> { });
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            menu.setElevation(dp(8));
-        }
-
-        for (TimeFilter filter : TimeFilter.values()) {
-            TextView item = timeMenuItem(filter.label(), filter == activeFilter);
-            item.setOnClickListener(v -> {
-                timeFiltersVisible = false;
-                action.select(filter);
-            });
-            menu.addView(item);
-        }
-
-        FrameLayout.LayoutParams menuParams = new FrameLayout.LayoutParams(
-                dp(184),
-                FrameLayout.LayoutParams.WRAP_CONTENT);
-        menuParams.gravity = Gravity.TOP | Gravity.RIGHT;
-        menuParams.topMargin = dp(126);
-        menuParams.rightMargin = dp(20);
-        overlay.addView(menu, menuParams);
-        return overlay;
-    }
-
-    private TextView timeMenuItem(String text, boolean selected) {
-        TextView item = new TextView(this);
-        item.setText(selected ? text + "  ✓" : text);
-        item.setTextSize(18);
-        item.setTextColor(selected ? Color.parseColor("#E7345C") : Color.rgb(47, 50, 58));
-        item.setGravity(Gravity.CENTER_VERTICAL);
-        item.setPadding(dp(24), dp(14), dp(18), dp(14));
-        item.setClickable(true);
-        item.setFocusable(true);
-        applyTimes(item, Typeface.BOLD);
-        return item;
     }
 
     private GradientDrawable timeMenuBackground() {
@@ -1735,7 +1604,7 @@ public class MainActivity extends Activity {
         button.setBackground(tagBackground(selected));
     }
 
-    private View tagJumpBar(PostEngagement.Tag activeTag, TimeFilter activeFilter) {
+    private View tagJumpBar(PostEngagement.Tag activeTag) {
         LinearLayout section = new LinearLayout(this);
         section.setOrientation(LinearLayout.VERTICAL);
         section.setPadding(0, dp(14), 0, dp(22));
@@ -1748,7 +1617,7 @@ public class MainActivity extends Activity {
 
         for (PostEngagement.Tag tag : PostEngagement.Tag.values()) {
             TextView chip = tagChip(tag, tag == activeTag);
-            chip.setOnClickListener(v -> showTrendingPage(tag, activeFilter));
+            chip.setOnClickListener(v -> showTrendingPage(tag));
             ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -1802,15 +1671,6 @@ public class MainActivity extends Activity {
             chips.addView(chip, params);
         }
 
-        for (String custom : engagement.customTags()) {
-            TextView chip = displayCategoryChip("#" + custom);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            params.setMargins(dp(6), 0, 0, 0);
-            chips.addView(chip, params);
-        }
-
         scroll.addView(chips);
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -1847,15 +1707,6 @@ public class MainActivity extends Activity {
             row.addView(chip, params);
         }
 
-        for (String custom : engagement.customTags()) {
-            TextView chip = customTagChip(custom, selected);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            params.setMargins(0, 0, dp(8), 0);
-            row.addView(chip, params);
-        }
-
         TextView visibility = new TextView(this);
         visibility.setText(engagement.visibility().label());
         visibility.setTextSize(12);
@@ -1867,17 +1718,6 @@ public class MainActivity extends Activity {
 
         scroll.addView(row);
         return scroll;
-    }
-
-    private TextView customTagChip(String tag, boolean selected) {
-        TextView chip = new TextView(this);
-        chip.setText("#" + tag);
-        chip.setTextSize(12);
-        chip.setTextColor(selected ? Color.WHITE : Color.rgb(59, 86, 162));
-        chip.setBackground(tagBackground(selected));
-        chip.setPadding(dp(10), dp(5), dp(10), dp(5));
-        applyTimes(chip, Typeface.BOLD);
-        return chip;
     }
 
     private View postEngagementBar(Post post, Runnable onRefresh, boolean compact) {
@@ -2060,13 +1900,8 @@ public class MainActivity extends Activity {
     }
 
     private void showTrendingPage(PostEngagement.Tag selectedTag) {
-        showTrendingPage(selectedTag, TimeFilter.ALL);
-    }
-
-    private void showTrendingPage(PostEngagement.Tag selectedTag, TimeFilter activeFilter) {
         boolean isAdmin = currentUser.role() == User.Role.Admin;
         PostEngagement.Tag activeTag = selectedTag == null ? PostEngagement.Tag.ACADEMIC : selectedTag;
-        TimeFilter filter = activeFilter == null ? TimeFilter.ALL : activeFilter;
 
         FrameLayout screen = new FrameLayout(this);
         screen.setBackgroundColor(Color.parseColor("#F9FCFF"));
@@ -2084,7 +1919,6 @@ public class MainActivity extends Activity {
         LinearLayout listSection = new LinearLayout(this);
         listSection.setOrientation(LinearLayout.VERTICAL);
         listSection.setPadding(dp(20), dp(18), dp(20), 0);
-        listSection.addView(timeFilterBar(filter, selected -> showTrendingPage(activeTag, selected)));
 
         TextView title = new TextView(this);
         title.setText("Trending in #" + activeTag.label());
@@ -2096,7 +1930,7 @@ public class MainActivity extends Activity {
 
         List<Post> posts = new ArrayList<>();
         for (Post item : engagementService.trendingPosts(activeTag, isAdmin)) {
-            if (canViewPost(item) && filter.includes(postTimestamp(item, isAdmin))) posts.add(item);
+            if (canViewPost(item)) posts.add(item);
         }
         if (posts.isEmpty()) {
             TextView empty = bodyText("No posts in this tag yet.");
@@ -2104,18 +1938,15 @@ public class MainActivity extends Activity {
             listSection.addView(empty);
         } else {
             for (Post post : posts) {
-                listSection.addView(trendingPostCard(post, isAdmin, filter));
+                listSection.addView(trendingPostCard(post, isAdmin));
             }
         }
 
-        listSection.addView(tagJumpBar(activeTag, filter));
+        listSection.addView(tagJumpBar(activeTag));
         content.addView(listSection);
 
         scrollView.addView(content);
         screen.addView(scrollView);
-        if (timeFiltersVisible) {
-            screen.addView(timeFilterOverlay(filter, selected -> showTrendingPage(activeTag, selected)));
-        }
         screen.addView(postComposerDock(true, activeTag));
 
         root.removeAllViews();
@@ -2668,8 +2499,23 @@ public class MainActivity extends Activity {
 
     private List<Message> reportedMessagesForAdmin(String mode, int amount) {
         ArrayList<Message> messages = new ArrayList<>();
-        Iterator<Message> it = ModerationTools.getReportedMessages(mode, amount);
-        while (it.hasNext()) messages.add(it.next());
+        for (Iterator<Message> it = ModerationTools.getReportedMessages("MOST", Math.max(amount, 200)); it.hasNext(); ) messages.add(it.next());
+        messages.sort((left, right) -> {
+            MessageReports leftReports = ReportDAO.getInstance().getReportsFor(left.id());
+            MessageReports rightReports = ReportDAO.getInstance().getReportsFor(right.id());
+            if ("OLDEST".equals(mode)) return Long.compare(left.timestamp(), right.timestamp());
+            if ("MOST".equals(mode)) {
+                int byCount = Integer.compare(rightReports == null ? 0 : rightReports.count(), leftReports == null ? 0 : leftReports.count());
+                if (byCount != 0) return byCount;
+                return Integer.compare(priorityRank(priorityLabel(rightReports)), priorityRank(priorityLabel(leftReports)));
+            }
+            int byPriority = Integer.compare(priorityRank(priorityLabel(rightReports)), priorityRank(priorityLabel(leftReports)));
+            if (byPriority != 0) return byPriority;
+            int byCount = Integer.compare(rightReports == null ? 0 : rightReports.count(), leftReports == null ? 0 : leftReports.count());
+            if (byCount != 0) return byCount;
+            return Long.compare(left.timestamp(), right.timestamp());
+        });
+        if (messages.size() > amount) return new ArrayList<>(messages.subList(0, amount));
         return messages;
     }
 

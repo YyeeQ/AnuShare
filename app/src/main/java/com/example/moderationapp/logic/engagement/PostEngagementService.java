@@ -58,10 +58,9 @@ public class PostEngagementService {
     public void updatePostSettings(
             UUID postId,
             Set<PostEngagement.Tag> tags,
-            Set<String> customTags,
             PostEngagement.Visibility visibility) {
         PostEngagement metadata = ensureMetadata(postId);
-        metadata.setTags(tags, customTags);
+        metadata.setTags(tags);
         metadata.setVisibility(visibility);
     }
 

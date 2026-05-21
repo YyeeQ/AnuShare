@@ -62,31 +62,28 @@ public class PostEngagement implements HasUUID {
 
     private final UUID postId;
     private final Set<Tag> tags;
-    private final Set<String> customTags;
     private Visibility visibility;
     private final Set<UUID> likedBy;
     private final Set<UUID> dislikedBy;
     private final Set<UUID> watchedBy;
 
     public PostEngagement(UUID postId, Tag tag) {
-        this(postId, initialTags(tag), new LinkedHashSet<>(), Visibility.PUBLIC, new HashSet<>(), new HashSet<>(), new HashSet<>());
+        this(postId, initialTags(tag), Visibility.PUBLIC, new HashSet<>(), new HashSet<>(), new HashSet<>());
     }
 
     public PostEngagement(UUID postId, Tag tag, Set<UUID> likedBy, Set<UUID> dislikedBy, Set<UUID> watchedBy) {
-        this(postId, initialTags(tag), new LinkedHashSet<>(), Visibility.PUBLIC, likedBy, dislikedBy, watchedBy);
+        this(postId, initialTags(tag), Visibility.PUBLIC, likedBy, dislikedBy, watchedBy);
     }
 
     public PostEngagement(
             UUID postId,
             Set<Tag> tags,
-            Set<String> customTags,
             Visibility visibility,
             Set<UUID> likedBy,
             Set<UUID> dislikedBy,
             Set<UUID> watchedBy) {
         this.postId = postId;
         this.tags = sanitizeTags(tags);
-        this.customTags = sanitizeCustomTags(customTags);
         this.visibility = visibility == null ? Visibility.PUBLIC : visibility;
         this.likedBy = likedBy == null ? new HashSet<>() : new HashSet<>(likedBy);
         this.dislikedBy = dislikedBy == null ? new HashSet<>() : new HashSet<>(dislikedBy);
@@ -115,15 +112,9 @@ public class PostEngagement implements HasUUID {
         return Collections.unmodifiableSet(tags);
     }
 
-    public Set<String> customTags() {
-        return Collections.unmodifiableSet(customTags);
-    }
-
-    public void setTags(Set<Tag> tags, Set<String> customTags) {
+    public void setTags(Set<Tag> tags) {
         this.tags.clear();
         this.tags.addAll(sanitizeTags(tags));
-        this.customTags.clear();
-        this.customTags.addAll(sanitizeCustomTags(customTags));
     }
 
     public Visibility visibility() {
@@ -207,16 +198,5 @@ public class PostEngagement implements HasUUID {
         Set<Tag> tags = new LinkedHashSet<>();
         tags.add(tag == null ? Tag.ACADEMIC : tag);
         return tags;
-    }
-
-    private Set<String> sanitizeCustomTags(Set<String> source) {
-        Set<String> result = new LinkedHashSet<>();
-        if (source == null) return result;
-        for (String tag : source) {
-            if (tag == null) continue;
-            String cleaned = tag.trim();
-            if (!cleaned.isEmpty()) result.add(cleaned);
-        }
-        return result;
     }
 }
