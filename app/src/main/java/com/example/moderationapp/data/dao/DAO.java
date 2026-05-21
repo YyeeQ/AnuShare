@@ -24,6 +24,22 @@ public abstract class DAO<T extends HasUUID> {
         return data.insert(element);
     }
 
+    public boolean remove(T element) {
+        boolean removed = false;
+        SortedData<T> rebuilt = SortedDataFactory.makeSortedData(comparator);
+        Iterator<T> iterator = data.getAll();
+        while (iterator.hasNext()) {
+            T current = iterator.next();
+            if (comparator.compare(current, element) == 0) {
+                removed = true;
+            } else {
+                rebuilt.insert(current);
+            }
+        }
+        data = rebuilt;
+        return removed;
+    }
+
     public void clear() {
         data = SortedDataFactory.makeSortedData(comparator);
     }

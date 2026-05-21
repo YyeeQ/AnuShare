@@ -12,6 +12,7 @@ import com.example.moderationapp.logic.moderation.strategy.ReportStrategyFactory
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
 
 public class ModerationTools {
@@ -21,10 +22,16 @@ public class ModerationTools {
     }
 
     public static boolean addReport(UUID message, UUID user, long timestamp, Report.Type type) {
+        ArrayList<Report.Type> types = new ArrayList<>();
+        types.add(type == null ? Report.Type.OTHER : type);
+        return addReport(message, user, timestamp, types, "");
+    }
+
+    public static boolean addReport(UUID message, UUID user, long timestamp, List<Report.Type> types, String reason) {
         if (message == null || user == null) return false;
         if (!messageExists(message)) return false;
         if (UserDAO.getInstance().getByUUID(user) == null) return false;
-        return ReportDAO.getInstance().addReport(message, user, timestamp, type);
+        return ReportDAO.getInstance().addReport(message, user, timestamp, types, reason);
     }
 
     public static boolean removeReport(UUID message, UUID user, long timestamp) {

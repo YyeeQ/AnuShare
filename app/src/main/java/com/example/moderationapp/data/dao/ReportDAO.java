@@ -5,6 +5,7 @@ import com.example.moderationapp.data.model.Report;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,9 +30,15 @@ public class ReportDAO {
     }
 
     public boolean addReport(UUID messageId, UUID userId, long timestamp, Report.Type type) {
+        java.util.ArrayList<Report.Type> types = new java.util.ArrayList<>();
+        types.add(type == null ? Report.Type.OTHER : type);
+        return addReport(messageId, userId, timestamp, types, "");
+    }
+
+    public boolean addReport(UUID messageId, UUID userId, long timestamp, List<Report.Type> types, String reason) {
         MessageReports bucket = buckets.computeIfAbsent(messageId, MessageReports::new);
         if (bucket.hasReportFrom(userId)) return false;
-        bucket.add(new Report(messageId, userId, timestamp, type));
+        bucket.add(new Report(messageId, userId, timestamp, types, reason));
         return true;
     }
 
